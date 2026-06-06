@@ -29,7 +29,7 @@ https://github.com/takamoto0801shota-glitch/waseshibu
 
 | 環境 | URL |
 |------|-----|
-| Production | _（Railway 連携後に記載）_ |
+| Production | https://atlas-production-c8d3.up.railway.app |
 
 ## 技術スタック
 

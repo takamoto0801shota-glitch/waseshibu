@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #4a9b8e;
+  --color-primary-dark: #3d8277;
+  --color-reward: #e85d4c;
+  --color-reward-dark: #c94a3b;
+  --color-reward-light: #fff0ee;
+  --color-bg: #faf9f7;
+  --color-card: #ffffff;
+  --color-border: #e8e6e1;
+  --color-text: #1a1a1a;
+  --color-muted: #7a7a7a;
+  --font-sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.sketch-border {
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.sketch-btn {
+  border: 2px solid var(--color-text);
+  border-radius: 999px;
+  background: var(--color-card);
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.sketch-btn:active {
+  background: #eee;
+}
+
+.sketch-btn-primary {
+  background: var(--color-reward);
+  color: white;
+  border-color: var(--color-reward);
+}
+
+.sketch-btn-primary:active {
+  background: var(--color-reward-dark);
+}
+
+.reward-card {
+  background: linear-gradient(135deg, var(--color-reward-light), #fff);
+  border: 2px solid var(--color-reward);
+  border-radius: 16px;
+}

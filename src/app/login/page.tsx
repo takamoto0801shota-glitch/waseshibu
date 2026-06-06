@@ -23,24 +23,29 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const { user, loading, configError, signInWithGoogle } = useAuth();
   const [error, setError] = useState<string | null>(null);
-  const [signingIn, setSigningIn] = useState(false);
 
   useEffect(() => {
     if (!loading && user) router.replace("/");
   }, [loading, user, router]);
 
   useEffect(() => {
-    if (searchParams.get("error") === "auth") {
-      setError("ログインに失敗しました。Supabase の Redirect URL 設定を確認してください。");
+    const err = searchParams.get("error");
+    const msg = searchParams.get("message");
+    if (err === "config" && msg) {
+      setError(decodeURIComponent(msg));
+    } else if (err === "auth") {
+      setError(
+        "ログインに失敗しました。Supabase の Redirect URL 設定を確認してください。"
+      );
     }
   }, [searchParams]);
 
-  const handleLogin = async () => {
-    setError(null);
-    setSigningIn(true);
-    const err = await signInWithGoogle();
-    if (err) setError(err);
-    setSigningIn(false);
+  const handleLogin = () => {
+    if (configError) {
+      setError(configError);
+      return;
+    }
+    signInWithGoogle();
   };
 
   if (loading) {
@@ -67,11 +72,11 @@ function LoginContent() {
           </p>
           <button
             onClick={handleLogin}
-            disabled={signingIn || !!configError}
+            disabled={!!configError}
             className="sketch-btn sketch-btn-primary w-full py-4 text-base flex items-center justify-center gap-3 disabled:opacity-50"
           >
             <GoogleIcon />
-            {signingIn ? "リダイレクト中..." : "Googleでログイン"}
+            Googleでログイン
           </button>
         </div>
 

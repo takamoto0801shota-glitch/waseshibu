@@ -5,10 +5,12 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { validateSupabaseConfig } from "@/lib/supabase/env";
 import {
   authUserFromSupabase,
   ensureUserRow,
@@ -22,23 +24,8 @@ interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   configError: string | null;
-  signInWithGoogle: () => Promise<string | null>;
+  signInWithGoogle: () => void;
   signOut: () => Promise<void>;
-}
-
-function getConfigError(): string | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-  if (!url || !key) {
-    return "Supabase の環境変数が未設定です（Railway Variables を確認）";
-  }
-  if (url.includes("xxxxx") || url.includes("placeholder")) {
-    return "NEXT_PUBLIC_SUPABASE_URL がプレースホルダーのままです。Supabase Dashboard の実際の URL に置き換えてください";
-  }
-  if (key.length < 100) {
-    return "NEXT_PUBLIC_SUPABASE_ANON_KEY が正しく設定されていません";
-  }
-  return null;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -57,13 +44,30 @@ function pickCloudState(): CloudAppState {
   };
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+interface AuthProviderProps {
+  children: React.ReactNode;
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+}
+
+export function AuthProvider({
+  children,
+  supabaseUrl,
+  supabaseAnonKey,
+}: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const configError = getConfigError();
+  const configError = validateSupabaseConfig(supabaseUrl, supabaseAnonKey);
   const hydrated = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const supabase = createClient();
+
+  const supabase = useMemo(
+    () =>
+      configError
+        ? null
+        : createClient(supabaseUrl, supabaseAnonKey),
+    [supabaseUrl, supabaseAnonKey, configError]
+  );
 
   const hydrateStore = useCallback((state: CloudAppState) => {
     useAppStore.setState({
@@ -84,6 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadAndHydrate = useCallback(
     async (uid: string) => {
+      if (!supabase) return;
       const cloud = await loadUserData(supabase, uid);
       hydrateStore(cloud);
       hydrated.current = true;
@@ -92,6 +97,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+
     const init = async () => {
       try {
         const {
@@ -130,7 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase, loadAndHydrate]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !supabase) return;
 
     const unsub = useAppStore.subscribe(() => {
       if (!hydrated.current) return;
@@ -146,18 +156,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user, supabase]);
 
-  const signInWithGoogle = async (): Promise<string | null> => {
-    if (configError) return configError;
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-    return error?.message ?? null;
+  const signInWithGoogle = () => {
+    window.location.href = "/api/auth/google";
   };
 
   const signOut = async () => {
+    if (!supabase) return;
     if (user) {
       await saveUserData(supabase, user.uid, pickCloudState()).catch(
         () => {}

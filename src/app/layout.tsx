@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { AuthProvider } from "@/components/AuthProvider";
+import { getSupabaseConfig } from "@/lib/supabase/env";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,10 +17,14 @@ export const viewport: Viewport = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const { url, anonKey } = getSupabaseConfig();
+
   return (
     <html lang="ja">
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider supabaseUrl={url} supabaseAnonKey={anonKey}>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

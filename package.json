@@ -7,10 +7,10 @@
   },
   "scripts": {
     "dev": "next dev",
-    "dev:reset": "npm run clean && lsof -ti :3000 | xargs kill -9 2>/dev/null || true && next dev",
+    "dev:reset": "lsof -ti :3000,:3001 | xargs kill -9 2>/dev/null || true && npm run clean && next dev",
     "clean": "rm -rf .next node_modules/.cache",
-    "prebuild": "npm run clean",
     "build": "next build",
+    "build:clean": "npm run clean && next build",
     "start": "next start",
     "lint": "eslint"
   },

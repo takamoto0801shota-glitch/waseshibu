@@ -44,10 +44,22 @@ https://github.com/takamoto0801shota-glitch/waseshibu
 / → /menu（ロードマップ） → /session → /complete
 ```
 
+## 認証（v2）
+
+**Supabase Auth + Google ログイン**。独自パスワードは不要。
+
+- 初回ログイン → ユーザー自動作成
+- 2回目以降 → 自動ログイン + クラウドから状態復元
+- 保存: uid, email, displayName, photoURL + 学年・モード・履歴・ロードマップ
+
+セットアップ: [docs/認証セットアップ.md](./docs/認証セットアップ.md)
+
 ## 環境変数
 
 | 変数 | 必須 | 説明 |
 |------|------|------|
+| `NEXT_PUBLIC_SUPABASE_URL` | **必須** | Supabase プロジェクト URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | **必須** | Supabase anon key |
 | `OPENAI_API_KEY` | 推奨 | OpenAI API キー。未設定時はルールベース動作 |
 | `PORT` | 自動 | Railway が自動設定 |
 | `NODE_ENV` | 自動 | Railway が `production` を設定 |

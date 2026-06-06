@@ -10,10 +10,12 @@ import { TestDatePicker } from "@/components/TestDatePicker";
 import { getDaysUntilTest } from "@/lib/planGenerator";
 import { MODE_HINTS } from "@/lib/types";
 import { CourseTrack, SubjectConfig, UserDesire } from "@/lib/types";
+import { useAuth } from "@/components/AuthProvider";
 import { useAppStore } from "@/store/useAppStore";
 
 export default function MyPage() {
   const router = useRouter();
+  const { user, signOut } = useAuth();
   const profile = useAppStore((s) => s.profile);
   const dailyRecords = useAppStore((s) => s.dailyRecords);
   const setMode = useAppStore((s) => s.setMode);
@@ -67,7 +69,27 @@ export default function MyPage() {
   return (
     <div className="min-h-dvh bg-bg pb-24">
       <main className="max-w-md mx-auto px-5 pt-8">
-        <h1 className="text-xl font-bold mb-6">マイページ</h1>
+        <h1 className="text-xl font-bold mb-4">マイページ</h1>
+
+        {user && (
+          <div className="sketch-border bg-card p-4 mb-5 flex items-center gap-3">
+            {user.photoURL ? (
+              <img
+                src={user.photoURL}
+                alt=""
+                className="w-10 h-10 rounded-full"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-border flex items-center justify-center text-sm font-bold">
+                {user.displayName.charAt(0)}
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold truncate">{user.displayName}</p>
+              <p className="text-xs text-muted truncate">{user.email}</p>
+            </div>
+          </div>
+        )}
 
         <div className="reward-card p-5 mb-5 text-center">
           <p className="text-3xl font-bold">{totalUnlocked}分</p>
@@ -227,9 +249,19 @@ export default function MyPage() {
 
         <button
           onClick={handleReset}
-          className="sketch-btn w-full py-3 text-sm"
+          className="sketch-btn w-full py-3 text-sm mb-3"
         >
           初回設定をやり直す
+        </button>
+
+        <button
+          onClick={async () => {
+            await signOut();
+            router.replace("/login");
+          }}
+          className="sketch-btn w-full py-3 text-sm text-muted"
+        >
+          Googleアカウントからログアウト
         </button>
       </main>
       <BottomNav />

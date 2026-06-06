@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { defaultProfile } from "@/lib/userData";
 import { DESIRE_PRESETS } from "@/lib/desires";
 import {
   createDailyPlan,
@@ -16,10 +16,8 @@ import {
   computeRewardMinutes,
   logEntryFromBlock,
   moodCoachMessage,
-  normalizeMode,
   pickNextSubject,
 } from "@/lib/rhythmCoach";
-import { filterSubjects } from "@/lib/exclusions";
 import { sanitizeSubjects } from "@/lib/subjectUtils";
 import {
   DailyPlan,
@@ -74,6 +72,7 @@ interface AppState {
     desireLabel: string
   ) => void;
   resetSession: () => void;
+  resetAll: () => void;
   setSubjects: (subjects: SubjectConfig[]) => void;
 }
 
@@ -96,28 +95,21 @@ function startBlock(block: ScheduleBlock, autoRun: boolean) {
   };
 }
 
-export const useAppStore = create<AppState>()(
-  persist(
-    (set, get) => ({
-      profile: {
-        grade: "",
-        courseTrack: "arts",
-        desires: defaultDesires(),
-        subjects: [],
-        testDate: "",
-        mode: "self_study",
-        onboardingComplete: false,
-      },
-      todayMinutes: 150,
-      todayRewardDesires: [],
-      todaySubjectIds: [],
-      plan: null,
-      currentBlock: null,
-      sessionPhase: null,
-      remainingSeconds: 0,
-      isRunning: false,
-      dailyRecords: [],
+const initialState = {
+  profile: defaultProfile(),
+  todayMinutes: 150,
+  todayRewardDesires: [] as UserDesire[],
+  todaySubjectIds: [] as string[],
+  plan: null as DailyPlan | null,
+  currentBlock: null as ScheduleBlock | null,
+  sessionPhase: null as SessionPhase | null,
+  remainingSeconds: 0,
+  isRunning: false,
+  dailyRecords: [] as DailyRecord[],
+};
 
+export const useAppStore = create<AppState>()((set, get) => ({
+      ...initialState,
       completeOnboarding: (data) => {
         const subjects = sanitizeSubjects(data.subjects);
         set({
@@ -436,6 +428,8 @@ export const useAppStore = create<AppState>()(
           isRunning: false,
         }),
 
+      resetAll: () => set({ ...initialState, profile: defaultProfile() }),
+
       setSubjects: (subjects) =>
         set((s) => {
           const valid = sanitizeSubjects(
@@ -445,32 +439,7 @@ export const useAppStore = create<AppState>()(
             profile: { ...s.profile, subjects: valid },
           };
         }),
-    }),
-    {
-      name: "waseshibu-v6",
-      onRehydrateStorage: () => (state) => {
-        if (!state) return;
-        if (!state.profile.courseTrack) {
-          state.profile.courseTrack = "arts";
-        }
-        state.profile.mode = normalizeMode(state.profile.mode);
-        if (!state.profile.desires || state.profile.desires.length === 0) {
-          state.profile.desires = defaultDesires();
-        }
-        const subjects = filterSubjects(state.profile.subjects);
-        state.profile.subjects = subjects;
-        const validIds = new Set(subjects.map((s) => s.id));
-        state.todaySubjectIds = state.todaySubjectIds.filter((id) =>
-          validIds.has(id)
-        );
-        if (!state.plan || "blocks" in (state.plan as object)) {
-          state.plan = null;
-        }
-        state.currentBlock = state.currentBlock ?? null;
-      },
-    }
-  )
-);
+}));
 
 export function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);

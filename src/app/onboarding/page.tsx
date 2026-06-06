@@ -7,10 +7,12 @@ import { GradePicker } from "@/components/GradePicker";
 import { SubjectSelector } from "@/components/SubjectSelector";
 import { buildAllSubjects, needsCourseTrack } from "@/lib/subjectCatalog";
 import { CourseTrack, SubjectConfig, UserDesire } from "@/lib/types";
+import { useAuth } from "@/components/AuthProvider";
 import { useAppStore } from "@/store/useAppStore";
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { loading: authLoading } = useAuth();
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
 
   const [step, setStep] = useState(0);
@@ -35,6 +37,14 @@ export default function OnboardingPage() {
     });
     router.replace("/");
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-dvh bg-bg flex items-center justify-center">
+        <p className="text-sm text-muted">読み込み中...</p>
+      </div>
+    );
+  }
 
   const canNext =
     step === 0

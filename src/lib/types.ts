@@ -142,3 +142,23 @@ export interface DailyRecord {
   unlockedMinutes: number;
   desireLabel: string;
 }
+
+/** Supabase Auth ユーザー情報 */
+export interface AuthUser {
+  uid: string;
+  email: string;
+  displayName: string;
+  photoURL: string | null;
+}
+
+/** クラウド保存用アプリ状態 */
+export interface CloudAppState {
+  profile: UserProfile;
+  todayMinutes: number;
+  todayRewardDesires: UserDesire[];
+  todaySubjectIds: string[];
+  plan: DailyPlan | null;
+  dailyRecords: DailyRecord[];
+  currentBlock: ScheduleBlock | null;
+  sessionPhase: SessionPhase | null;
+}

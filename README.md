@@ -19,15 +19,17 @@ Railway（本番環境）
 3. Railway が自動ビルド・デプロイ（数分）
 4. Railway の URL で動作確認
 
+## リポジトリ
+
+https://github.com/takamoto0801shota-glitch/waseshibu
+
 ## デプロイ URL
 
 > Railway ダッシュボード → サービス → **Settings → Networking → Public URL**
 
-初回セットアップ後、この README の「デプロイ URL」欄を更新してください。
-
 | 環境 | URL |
 |------|-----|
-| Production | _（Railway デプロイ後に記載）_ |
+| Production | _（Railway 連携後に記載）_ |
 
 ## 技術スタック
 

@@ -22,10 +22,12 @@ export function validateSupabaseConfig(
     return "SUPABASE_URL がプレースホルダーのままです。Supabase Dashboard の実際の URL に置き換えてください";
   }
   if (anonKey.includes("...") || anonKey.length < 20) {
-    return "SUPABASE_ANON_KEY がプレースホルダーまたは短すぎます。Supabase Dashboard → API の anon key をそのままコピーしてください";
+    return "SUPABASE_ANON_KEY がプレースホルダーまたは短すぎます。Supabase Dashboard → API の key をそのままコピーしてください";
   }
-  if (!anonKey.startsWith("eyJ")) {
-    return "SUPABASE_ANON_KEY の形式が不正です（eyJ で始まる JWT を設定してください）";
+  const validKey =
+    anonKey.startsWith("eyJ") || anonKey.startsWith("sb_publishable_");
+  if (!validKey) {
+    return "SUPABASE_ANON_KEY の形式が不正です（eyJ... または sb_publishable_... を設定してください）";
   }
   return null;
 }

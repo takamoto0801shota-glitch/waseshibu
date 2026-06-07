@@ -1,24 +1,46 @@
-import type { CloudAppState, UserProfile } from "@/lib/types";
+import { GRADE_OPTIONS, normalizeGrade } from "@/lib/grades";
+import type { CloudAppState, SubjectConfig, UserProfile } from "@/lib/types";
 
 const SESSION_KEY = "atlas_onboarding_done_uid";
 const LOCK_PREFIX = "atlas_setup_locked_v1_";
 const BACKUP_PREFIX = "atlas_state_backup_v1_";
 
-/** ホーム画面で表示に必要な初期設定データがあるか（ルーティング判定用） */
-export function hasSetupInfo(profile: UserProfile): boolean {
-  return profile.grade !== "" && profile.subjects.length > 0;
+export const HOME_PATH = "/home";
+export const ONBOARDING_PATH = "/onboarding";
+
+/** 学年が選択済みか（例: 中学2年） */
+export function hasValidGrade(grade: string): boolean {
+  const normalized = normalizeGrade(grade);
+  return (GRADE_OPTIONS as readonly string[]).includes(normalized);
 }
 
-/** プロフィールから初期設定完了を推論 */
+/** 科目が1つ以上あるか（例: 数学） */
+export function hasValidSubjects(subjects: SubjectConfig[]): boolean {
+  return subjects.some((s) => s.name.trim() !== "");
+}
+
+/**
+ * 初期設定が完了しているか（ルーティング判定用）。
+ * 学年（中学2年など）と科目（数学など）の両方が必要。
+ */
+export function hasSetupInfo(profile: UserProfile): boolean {
+  return hasValidGrade(profile.grade) && hasValidSubjects(profile.subjects);
+}
+
+/** ホーム到着後に初期設定画面へ誘導すべきか */
+export function needsInitialSetup(profile: UserProfile): boolean {
+  return !hasSetupInfo(profile);
+}
+
+/** プロフィールから初期設定完了を推論（学年・科目が揃っている場合のみ） */
 export function inferOnboardingComplete(profile: UserProfile): boolean {
-  if (profile.onboardingComplete) return true;
   return hasSetupInfo(profile);
 }
 
 /** クラウド状態から初期設定がロック済みか */
 export function isCloudSetupLocked(state: CloudAppState): boolean {
-  if (state.setupLockedAt) return true;
-  return inferOnboardingComplete(state.profile);
+  if (!hasSetupInfo(state.profile)) return false;
+  return !!state.setupLockedAt || state.profile.onboardingComplete;
 }
 
 /** localStorage に永久ロック済みか（プロフィール読込前でも判定可能） */
@@ -141,9 +163,9 @@ export function withStableProfile(
   return next;
 }
 
-/** ガード対象のメイン画面パス（ホームは `/`） */
+/** ガード対象のメイン画面パス */
 export const MAIN_APP_PATHS = [
-  "/",
+  HOME_PATH,
   "/mypage",
   "/menu",
   "/session",
@@ -151,8 +173,7 @@ export const MAIN_APP_PATHS = [
 ] as const;
 
 export function isMainAppPath(pathname: string): boolean {
-  if (pathname === "/") return true;
-  return MAIN_APP_PATHS.filter((p) => p !== "/").some(
+  return MAIN_APP_PATHS.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`)
   );
 }

@@ -7,6 +7,7 @@ import {
   isCloudSetupLocked,
   mergeLockedProfile,
 } from "@/lib/onboardingGate";
+import { normalizeGrade } from "@/lib/grades";
 import { normalizeMode } from "@/lib/rhythmCoach";
 import { sanitizeSubjects } from "@/lib/subjectUtils";
 import {
@@ -15,6 +16,7 @@ import {
   DEFAULT_REWARD_MINUTES,
   DEFAULT_STUDY_MINUTES,
   defaultRewardMinutesFromStudy,
+  SubjectConfig,
   UserDesire,
   UserProfile,
 } from "@/lib/types";
@@ -78,8 +80,32 @@ export function enforceSetupLock(state: CloudAppState): CloudAppState {
   };
 }
 
+function normalizeSubjects(rawSubjects: unknown): SubjectConfig[] {
+  if (!Array.isArray(rawSubjects)) return [];
+  return rawSubjects.map((item) => {
+    if (typeof item === "string") {
+      const name = item.trim();
+      return {
+        id: `legacy-${name}`,
+        name,
+        units: [],
+        strength: "normal" as const,
+      };
+    }
+    if (item && typeof item === "object" && "name" in item) {
+      return item as SubjectConfig;
+    }
+    return null;
+  }).filter((s): s is SubjectConfig => !!s && s.name.trim() !== "");
+}
+
 export function normalizeCloudState(raw: CloudAppState): CloudAppState {
-  const profile = { ...defaultProfile(), ...raw.profile };
+  const profile = {
+    ...defaultProfile(),
+    ...raw.profile,
+    subjects: normalizeSubjects(raw.profile?.subjects),
+  };
+  profile.grade = normalizeGrade(profile.grade);
   profile.mode = normalizeMode(profile.mode);
   if (!profile.courseTrack) profile.courseTrack = "arts";
   if (!profile.desires?.length) profile.desires = defaultDesires();
@@ -194,10 +220,7 @@ export async function saveUserData(
     .maybeSingle();
 
   const prev = existing?.app_state as CloudAppState | undefined;
-  const prevLocked =
-    !!prev?.setupLockedAt ||
-    !!prev?.profile?.onboardingComplete ||
-    inferOnboardingComplete(prev?.profile ?? defaultProfile());
+  const prevLocked = hasSetupInfo(prev?.profile ?? defaultProfile());
 
   let toSave = enforceSetupLock(normalizeCloudState(state));
 

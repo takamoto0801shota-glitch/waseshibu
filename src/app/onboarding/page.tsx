@@ -1,20 +1,35 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { DesirePicker } from "@/components/DesirePicker";
 import { GradePicker } from "@/components/GradePicker";
 import { SubjectSelector } from "@/components/SubjectSelector";
 import { buildAllSubjects, needsCourseTrack } from "@/lib/subjectCatalog";
 import { CourseTrack, SubjectConfig, UserDesire } from "@/lib/types";
 import { useAuth } from "@/components/AuthProvider";
-import { lockSetupPermanently } from "@/lib/onboardingGate";
+import {
+  hasSetupInfo,
+  hasValidGrade,
+  HOME_PATH,
+  lockSetupPermanently,
+} from "@/lib/onboardingGate";
 import { useAppStore } from "@/store/useAppStore";
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: authLoading, dataReady, saveCloudState } = useAuth();
+  const profile = useAppStore((s) => s.profile);
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
+
+  useEffect(() => {
+    if (authLoading || !dataReady) return;
+    const forceReset = searchParams.get("force") === "1";
+    if (!forceReset && hasSetupInfo(profile)) {
+      router.replace(HOME_PATH);
+    }
+  }, [authLoading, dataReady, profile, router, searchParams]);
 
   const [step, setStep] = useState(0);
   const [desires, setDesires] = useState<UserDesire[]>([]);
@@ -31,7 +46,7 @@ export default function OnboardingPage() {
   };
 
   const handleComplete = async () => {
-    if (subjects.length < 1) return;
+    if (!hasValidGrade(grade) || subjects.length < 1) return;
     setSaving(true);
     setSaveError("");
     try {
@@ -44,7 +59,7 @@ export default function OnboardingPage() {
       });
       await saveCloudState();
       if (user) lockSetupPermanently(user.uid);
-      router.replace("/");
+      router.replace(HOME_PATH);
     } catch (e) {
       const msg =
         e instanceof Error ? e.message : "保存に失敗しました。もう一度お試しください。";
@@ -66,7 +81,7 @@ export default function OnboardingPage() {
     step === 0
       ? desires.length >= 1
       : step === 1
-        ? grade !== ""
+        ? hasValidGrade(grade)
         : subjects.length >= 1;
 
   return (

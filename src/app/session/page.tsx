@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { MoodCheckPanel } from "@/components/MoodCheck";
 import { TodayDigestBar } from "@/components/TodayDigestBar";
 import { useTimer } from "@/hooks/useTimer";
+import { HOME_PATH } from "@/lib/onboardingGate";
 import { peekNextSubjectName } from "@/lib/rhythmCoach";
 import { formatTime, useAppStore } from "@/store/useAppStore";
 import { MoodCheck } from "@/lib/types";
@@ -57,7 +58,7 @@ export default function SessionPage() {
   useTimer();
 
   useEffect(() => {
-    if (!plan) router.replace("/");
+    if (!plan) router.replace(HOME_PATH);
   }, [plan, router]);
 
   useEffect(() => {

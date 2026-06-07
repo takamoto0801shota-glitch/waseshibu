@@ -28,17 +28,16 @@ import {
   shouldPersistToCloud,
   type SaveUserDataOptions,
 } from "@/lib/userData";
+import { fetchCloudWithRetry } from "@/lib/cloudFetch";
+import { recoverSetupState } from "@/lib/recoverSetup";
+import { applyCloudStateToStore } from "@/lib/storeHydrate";
 import {
   ensureUserRowViaApi,
   fetchUserDataFromApi,
   saveUserDataViaApi,
   verifyApiSaveResponse,
 } from "@/lib/userDataClient";
-import {
-  AuthUser,
-  CloudAppState,
-  DEFAULT_REWARD_MINUTES,
-} from "@/lib/types";
+import { AuthUser, CloudAppState } from "@/lib/types";
 import { useAppStore } from "@/store/useAppStore";
 
 interface AuthContextValue {
@@ -101,26 +100,7 @@ export function AuthProvider({
   );
 
   const hydrateStore = useCallback((state: CloudAppState) => {
-    const locked = enforceSetupLock(state);
-    useAppStore.setState({
-      setupLockedAt: locked.setupLockedAt ?? null,
-      profile: locked.profile,
-      todayMinutes: locked.todayMinutes,
-      todayRewardMinutes:
-        locked.todayRewardMinutes ?? DEFAULT_REWARD_MINUTES,
-      todayRewardDesires: locked.todayRewardDesires,
-      todaySubjectIds: locked.todaySubjectIds,
-      plan: locked.plan,
-      dailyRecords: locked.dailyRecords,
-      currentBlock: locked.currentBlock,
-      sessionPhase: locked.sessionPhase,
-      remainingSeconds:
-        locked.remainingSeconds ??
-        (locked.currentBlock
-          ? locked.currentBlock.durationMinutes * 60
-          : 0),
-      isRunning: locked.isRunning ?? false,
-    });
+    applyCloudStateToStore(state);
   }, []);
 
   const persistLocal = useCallback((uid: string, state: CloudAppState) => {
@@ -152,11 +132,7 @@ export function AuthProvider({
         const backup = loadLocalStateBackup(uid);
         let cloud: CloudAppState | null = null;
 
-        try {
-          cloud = await fetchUserDataFromApi();
-        } catch {
-          cloud = null;
-        }
+        cloud = await fetchCloudWithRetry(3);
 
         if (cloud && !hasSetupInfo(cloud.profile) && backup && hasSetupInfo(backup.profile)) {
           cloud = enforceSetupLock(backup);
@@ -164,18 +140,11 @@ export function AuthProvider({
           cloud = enforceSetupLock(backup);
         }
         if (!cloud || !hasSetupInfo(cloud.profile)) {
-          await new Promise((r) => setTimeout(r, 400));
-          try {
-            const retry = await fetchUserDataFromApi();
-            if (retry && hasSetupInfo(retry.profile)) {
-              cloud = retry;
-            } else if (backup && hasSetupInfo(backup.profile)) {
-              cloud = enforceSetupLock(backup);
-            }
-          } catch {
-            if (backup && hasSetupInfo(backup.profile)) {
-              cloud = enforceSetupLock(backup);
-            }
+          const retry = await fetchCloudWithRetry(3, 500);
+          if (retry && hasSetupInfo(retry.profile)) {
+            cloud = retry;
+          } else if (backup && hasSetupInfo(backup.profile)) {
+            cloud = enforceSetupLock(backup);
           }
         }
 
@@ -194,10 +163,8 @@ export function AuthProvider({
             }
           }
         } else if (isSetupLockedForUser(uid)) {
-          const localBackup = loadLocalStateBackup(uid);
-          if (localBackup) {
-            hydrateStore(localBackup);
-          } else {
+          const recovered = await recoverSetupState(uid);
+          if (!recovered) {
             hydrateStore(defaultCloudState());
           }
         } else {

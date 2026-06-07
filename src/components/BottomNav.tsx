@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { HOME_PATH } from "@/lib/onboardingGate";
 
 const items = [
-  { href: "/", label: "ホーム" },
+  { href: HOME_PATH, label: "ホーム" },
   { href: "/mypage", label: "マイページ" },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
-  const hidden = ["/onboarding", "/menu", "/session", "/complete", "/home"];
+  const hidden = ["/onboarding", "/menu", "/session", "/complete"];
   if (hidden.some((p) => pathname.startsWith(p))) return null;
 
   return (

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RoadmapTimeline } from "@/components/RoadmapTimeline";
 import { formatTodaySubjectsSummary } from "@/components/TodaySubjectSheet";
+import { HOME_PATH } from "@/lib/onboardingGate";
 import {
   buildRoadmap,
   countStepsUntilGoal,
@@ -35,7 +36,7 @@ export default function RoadmapPage() {
   }, [plan, profile, todaySubjectIds, currentBlock, sessionPhase]);
 
   useEffect(() => {
-    if (!plan) router.replace("/");
+    if (!plan) router.replace(HOME_PATH);
   }, [plan, router]);
 
   useEffect(() => {
@@ -132,7 +133,7 @@ export default function RoadmapPage() {
         <button
           onClick={() => {
             resetSession();
-            router.push("/");
+            router.push(HOME_PATH);
           }}
           className="sketch-btn w-full py-3 text-sm mt-3"
         >

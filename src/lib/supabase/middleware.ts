@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { HOME_PATH } from "@/lib/onboardingGate";
 import { getSupabaseConfig } from "./env";
 
 const PUBLIC_PATHS = ["/login", "/auth/callback"];
@@ -53,13 +54,13 @@ export async function updateSession(request: NextRequest) {
 
   if (user && pathname === "/login") {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = HOME_PATH;
     return NextResponse.redirect(url);
   }
 
-  if (pathname === "/home") {
+  if (user && pathname === "/") {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = HOME_PATH;
     return NextResponse.redirect(url);
   }
 

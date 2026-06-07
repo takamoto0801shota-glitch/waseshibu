@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import { HOME_PATH } from "@/lib/onboardingGate";
 
 export default function LoginPage() {
   return (
@@ -26,7 +27,7 @@ function LoginContent() {
   const [signingIn, setSigningIn] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) router.replace("/");
+    if (!loading && user) router.replace(HOME_PATH);
   }, [loading, user, router]);
 
   useEffect(() => {

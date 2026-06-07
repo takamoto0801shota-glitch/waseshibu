@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { todayStrJST } from "@/lib/dateUtils";
+import { normalizeGrade } from "@/lib/grades";
 import { withStableProfile } from "@/lib/onboardingGate";
 import { defaultProfile } from "@/lib/userData";
 import { DESIRE_PRESETS } from "@/lib/desires";
@@ -122,7 +123,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
         set({
           setupLockedAt: new Date().toISOString(),
           profile: {
-            grade: data.grade,
+            grade: normalizeGrade(data.grade),
             courseTrack: data.courseTrack,
             desires:
               data.desires.length > 0 ? data.desires : defaultDesires(),

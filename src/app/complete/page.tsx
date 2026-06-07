@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { HOME_PATH } from "@/lib/onboardingGate";
 import { getDaysUntilTest, getTotalDoneMinutes } from "@/lib/planGenerator";
 import { MODE_LABELS } from "@/lib/types";
 import { useAppStore } from "@/store/useAppStore";
@@ -15,12 +16,12 @@ export default function CompletePage() {
   const daysLeft = getDaysUntilTest(profile.testDate);
 
   useEffect(() => {
-    if (!plan) router.replace("/");
+    if (!plan) router.replace(HOME_PATH);
   }, [plan, router]);
 
   const handleHome = () => {
     resetSession();
-    router.push("/");
+    router.push(HOME_PATH);
   };
 
   if (!plan) {

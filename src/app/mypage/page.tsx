@@ -11,7 +11,7 @@ import { getDaysUntilTest } from "@/lib/planGenerator";
 import { MODE_HINTS } from "@/lib/types";
 import { CourseTrack, SubjectConfig, UserDesire } from "@/lib/types";
 import { useAuth } from "@/components/AuthProvider";
-import { clearSetupLock } from "@/lib/onboardingGate";
+import { clearSetupLock, ONBOARDING_PATH } from "@/lib/onboardingGate";
 import { defaultProfile } from "@/lib/userData";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -58,7 +58,7 @@ export default function MyPage() {
         isRunning: false,
       });
       await saveCloudState({ allowOnboardingReset: true });
-      router.push("/onboarding?force=1");
+      router.push(`${ONBOARDING_PATH}?force=1`);
     } finally {
       setResetting(false);
     }

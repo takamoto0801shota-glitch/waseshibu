@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import { HOME_PATH } from "@/lib/onboardingGate";
 import { createClient } from "@/lib/supabase/client";
 
 export default function AuthCallbackPage() {
@@ -70,7 +71,7 @@ function CallbackHandler() {
       await fetch("/api/auth/setup", { method: "POST" }).catch(() => {});
 
       setDone(true);
-      router.replace("/");
+      router.replace(HOME_PATH);
     };
 
     run();

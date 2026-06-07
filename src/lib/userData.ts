@@ -112,14 +112,14 @@ export async function ensureUserRow(
 export async function loadUserData(
   supabase: SupabaseClient,
   uid: string
-): Promise<CloudAppState> {
+): Promise<CloudAppState | null> {
   const { data, error } = await supabase
     .from("user_data")
     .select("app_state")
     .eq("uid", uid)
     .single();
 
-  if (error || !data?.app_state) return defaultCloudState();
+  if (error || !data?.app_state) return null;
   return normalizeCloudState(data.app_state as CloudAppState);
 }
 
@@ -128,8 +128,27 @@ export async function saveUserData(
   uid: string,
   state: CloudAppState
 ): Promise<void> {
+  const { data: existing } = await supabase
+    .from("user_data")
+    .select("app_state")
+    .eq("uid", uid)
+    .maybeSingle();
+
+  let toSave = state;
+  const prev = existing?.app_state as CloudAppState | undefined;
+  // 一時的なリセットで完了済み設定が上書きされるのを防ぐ
+  if (
+    prev?.profile?.onboardingComplete &&
+    !state.profile.onboardingComplete
+  ) {
+    toSave = normalizeCloudState({
+      ...state,
+      profile: { ...prev.profile, ...state.profile, onboardingComplete: true },
+    });
+  }
+
   await supabase
     .from("user_data")
-    .update({ app_state: state, updated_at: new Date().toISOString() })
+    .update({ app_state: toSave, updated_at: new Date().toISOString() })
     .eq("uid", uid);
 }

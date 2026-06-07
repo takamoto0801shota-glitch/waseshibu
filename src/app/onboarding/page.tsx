@@ -12,7 +12,7 @@ import { useAppStore } from "@/store/useAppStore";
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { user, loading: authLoading, saveCloudState } = useAuth();
+  const { user, loading: authLoading, dataReady, saveCloudState } = useAuth();
   const onboardingComplete = useAppStore((s) => s.profile.onboardingComplete);
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
 
@@ -41,12 +41,12 @@ export default function OnboardingPage() {
   };
 
   useEffect(() => {
-    if (!authLoading && user && onboardingComplete) {
+    if (!authLoading && dataReady && user && onboardingComplete) {
       router.replace("/");
     }
-  }, [authLoading, user, onboardingComplete, router]);
+  }, [authLoading, dataReady, user, onboardingComplete, router]);
 
-  if (authLoading) {
+  if (authLoading || !dataReady) {
     return (
       <div className="min-h-dvh bg-bg flex items-center justify-center">
         <p className="text-sm text-muted">読み込み中...</p>

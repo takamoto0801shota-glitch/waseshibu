@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/client";
 import { validateSupabaseConfig } from "@/lib/supabase/env";
 import {
   authUserFromSupabase,
+  defaultCloudState,
   ensureUserRow,
   loadUserData,
   saveUserData,
@@ -23,6 +24,7 @@ import { useAppStore } from "@/store/useAppStore";
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
+  dataReady: boolean;
   configError: string | null;
   supabaseUrl: string;
   supabaseAnonKey: string;
@@ -60,6 +62,7 @@ export function AuthProvider({
 }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dataReady, setDataReady] = useState(false);
   const configError = validateSupabaseConfig(supabaseUrl, supabaseAnonKey);
   const hydrated = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -93,11 +96,19 @@ export function AuthProvider({
     async (uid: string) => {
       if (!supabase) return;
       const cloud = await loadUserData(supabase, uid);
-      hydrateStore(cloud);
+      hydrateStore(cloud ?? defaultCloudState());
       hydrated.current = true;
+      setDataReady(true);
     },
     [supabase, hydrateStore]
   );
+
+  const clearSaveTimer = useCallback(() => {
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+  }, []);
 
   const saveCloudState = useCallback(async () => {
     if (!supabase || !user) return;
@@ -107,52 +118,75 @@ export function AuthProvider({
   useEffect(() => {
     if (!supabase) {
       setLoading(false);
+      setDataReady(true);
       return;
     }
 
-    const init = async () => {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (session?.user) {
-          const authUser = authUserFromSupabase(session.user);
-          setUser(authUser);
-          await ensureUserRow(supabase, session.user);
+    let mounted = true;
+
+    const handleSession = async (
+      event: string,
+      session: { user: { id: string } } | null
+    ) => {
+      if (!mounted) return;
+
+      if (session?.user) {
+        const authUser = authUserFromSupabase(
+          session.user as import("@supabase/supabase-js").User
+        );
+        setUser(authUser);
+
+        const shouldLoad =
+          !hydrated.current &&
+          (event === "INITIAL_SESSION" || event === "SIGNED_IN");
+
+        if (shouldLoad) {
+          await ensureUserRow(
+            supabase,
+            session.user as import("@supabase/supabase-js").User
+          );
           await loadAndHydrate(authUser.uid);
         }
-      } finally {
-        setLoading(false);
+      } else if (event === "SIGNED_OUT") {
+        clearSaveTimer();
+        setUser(null);
+        hydrated.current = false;
+        setDataReady(false);
+        useAppStore.getState().resetAll();
+        setDataReady(true);
       }
     };
-    init();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        const authUser = authUserFromSupabase(session.user);
-        setUser(authUser);
-        if (event === "SIGNED_IN" && !hydrated.current) {
-          await ensureUserRow(supabase, session.user);
-          await loadAndHydrate(authUser.uid);
-        }
-      } else {
-        setUser(null);
-        hydrated.current = false;
-        useAppStore.getState().resetAll();
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      void handleSession(event, session);
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      if (session?.user && !hydrated.current) {
+        void handleSession("INITIAL_SESSION", session);
+      }
+      setLoading(false);
+      if (!session?.user) {
+        setDataReady(true);
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, [supabase, loadAndHydrate]);
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+      clearSaveTimer();
+    };
+  }, [supabase, loadAndHydrate, clearSaveTimer]);
 
   useEffect(() => {
     if (!user || !supabase) return;
 
     const unsub = useAppStore.subscribe(() => {
       if (!hydrated.current) return;
-      if (saveTimer.current) clearTimeout(saveTimer.current);
+      clearSaveTimer();
       saveTimer.current = setTimeout(() => {
         saveUserData(supabase, user.uid, pickCloudState()).catch(() => {});
       }, 800);
@@ -160,9 +194,9 @@ export function AuthProvider({
 
     return () => {
       unsub();
-      if (saveTimer.current) clearTimeout(saveTimer.current);
+      clearSaveTimer();
     };
-  }, [user, supabase]);
+  }, [user, supabase, clearSaveTimer]);
 
   const signInWithGoogle = async (): Promise<string | null> => {
     if (!supabase) return configError ?? "Supabase が未設定です";
@@ -181,15 +215,18 @@ export function AuthProvider({
 
   const signOut = async () => {
     if (!supabase) return;
+    clearSaveTimer();
     if (user) {
       await saveUserData(supabase, user.uid, pickCloudState()).catch(
         () => {}
       );
     }
     hydrated.current = false;
+    setDataReady(false);
     await supabase.auth.signOut();
     setUser(null);
     useAppStore.getState().resetAll();
+    setDataReady(true);
   };
 
   return (
@@ -197,6 +234,7 @@ export function AuthProvider({
       value={{
         user,
         loading,
+        dataReady,
         configError,
         supabaseUrl,
         supabaseAnonKey,

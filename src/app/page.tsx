@@ -15,7 +15,7 @@ import { useAppStore } from "@/store/useAppStore";
 
 export default function HomePage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, dataReady } = useAuth();
   const profile = useAppStore((s) => s.profile);
   const todayMinutes = useAppStore((s) => s.todayMinutes);
   const todaySubjectIds = useAppStore((s) => s.todaySubjectIds);
@@ -33,11 +33,11 @@ export default function HomePage() {
   const subjects = profile.subjects;
 
   useEffect(() => {
-    if (authLoading || !user) return;
+    if (authLoading || !dataReady || !user) return;
     if (!profile.onboardingComplete) {
       router.replace("/onboarding");
     }
-  }, [authLoading, user, profile.onboardingComplete, router]);
+  }, [authLoading, dataReady, user, profile.onboardingComplete, router]);
 
   const commitHours = () => {
     const parsed = parseFloat(hoursText);
@@ -65,7 +65,7 @@ export default function HomePage() {
     todaySubjectIds
   );
 
-  if (authLoading || !user || !profile.onboardingComplete) {
+  if (authLoading || !dataReady || !user || !profile.onboardingComplete) {
     return (
       <div className="min-h-dvh bg-bg flex items-center justify-center">
         <p className="text-sm text-muted">読み込み中...</p>

@@ -13,7 +13,6 @@ import { createClient } from "@/lib/supabase/client";
 import { validateSupabaseConfig } from "@/lib/supabase/env";
 import {
   authUserFromSupabase,
-  ensureReadyProfile,
   ensureUserRow,
   loadUserData,
   saveUserData,
@@ -27,6 +26,7 @@ interface AuthContextValue {
   configError: string | null;
   signInWithGoogle: () => void;
   signOut: () => Promise<void>;
+  saveCloudState: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -90,13 +90,17 @@ export function AuthProvider({
   const loadAndHydrate = useCallback(
     async (uid: string) => {
       if (!supabase) return;
-      const cloud = ensureReadyProfile(await loadUserData(supabase, uid));
+      const cloud = await loadUserData(supabase, uid);
       hydrateStore(cloud);
       hydrated.current = true;
-      await saveUserData(supabase, uid, cloud).catch(() => {});
     },
     [supabase, hydrateStore]
   );
+
+  const saveCloudState = useCallback(async () => {
+    if (!supabase || !user) return;
+    await saveUserData(supabase, user.uid, pickCloudState());
+  }, [supabase, user]);
 
   useEffect(() => {
     if (!supabase) {
@@ -177,7 +181,14 @@ export function AuthProvider({
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, configError, signInWithGoogle, signOut }}
+      value={{
+        user,
+        loading,
+        configError,
+        signInWithGoogle,
+        signOut,
+        saveCloudState,
+      }}
     >
       {children}
     </AuthContext.Provider>

@@ -12,7 +12,7 @@ import { useAppStore } from "@/store/useAppStore";
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, saveCloudState } = useAuth();
   const onboardingComplete = useAppStore((s) => s.profile.onboardingComplete);
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
 
@@ -28,7 +28,7 @@ export default function OnboardingPage() {
     setSubjects(buildAllSubjects(g, "arts"));
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     completeOnboarding({
       grade,
       courseTrack,
@@ -36,6 +36,7 @@ export default function OnboardingPage() {
       subjects,
       testDate: "",
     });
+    await saveCloudState();
     router.replace("/");
   };
 

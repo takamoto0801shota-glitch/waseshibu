@@ -1,7 +1,6 @@
 import { SupabaseClient, User } from "@supabase/supabase-js";
 import { DESIRE_PRESETS } from "@/lib/desires";
 import { filterSubjects } from "@/lib/exclusions";
-import { buildAllSubjects } from "@/lib/subjectCatalog";
 import { normalizeMode } from "@/lib/rhythmCoach";
 import { sanitizeSubjects } from "@/lib/subjectUtils";
 import {
@@ -30,64 +29,17 @@ export function defaultProfile(): UserProfile {
   };
 }
 
-const DEFAULT_GRADE = "高校2年";
-
-/** Googleログイン直後にホームへ行ける初期状態 */
-export function buildReadyCloudState(): CloudAppState {
-  const subjects = buildAllSubjects(DEFAULT_GRADE, "arts");
+export function defaultCloudState(): CloudAppState {
   return {
-    profile: {
-      grade: DEFAULT_GRADE,
-      courseTrack: "arts",
-      desires: defaultDesires(),
-      subjects,
-      testDate: "",
-      mode: "self_study",
-      onboardingComplete: true,
-    },
+    profile: defaultProfile(),
     todayMinutes: 150,
     todayRewardDesires: [],
-    todaySubjectIds: subjects.map((s) => s.id),
+    todaySubjectIds: [],
     plan: null,
     dailyRecords: [],
     currentBlock: null,
     sessionPhase: null,
   };
-}
-
-export function defaultCloudState(): CloudAppState {
-  return buildReadyCloudState();
-}
-
-/** 未完了の初期設定をスキップしてホーム利用可能にする */
-export function ensureReadyProfile(state: CloudAppState): CloudAppState {
-  const normalized = normalizeCloudState(state);
-  if (normalized.profile.onboardingComplete) return normalized;
-
-  const ready = buildReadyCloudState();
-  const subjects =
-    normalized.profile.subjects.length > 0
-      ? normalized.profile.subjects
-      : ready.profile.subjects;
-  const grade = normalized.profile.grade || ready.profile.grade;
-
-  return normalizeCloudState({
-    ...normalized,
-    profile: {
-      ...normalized.profile,
-      grade,
-      subjects,
-      desires:
-        normalized.profile.desires.length > 0
-          ? normalized.profile.desires
-          : ready.profile.desires,
-      onboardingComplete: true,
-    },
-    todaySubjectIds:
-      normalized.todaySubjectIds.length > 0
-        ? normalized.todaySubjectIds
-        : subjects.map((s) => s.id),
-  });
 }
 
 export function authUserFromSupabase(user: User): AuthUser {
@@ -167,8 +119,8 @@ export async function loadUserData(
     .eq("uid", uid)
     .single();
 
-  if (error || !data?.app_state) return buildReadyCloudState();
-  return ensureReadyProfile(data.app_state as CloudAppState);
+  if (error || !data?.app_state) return defaultCloudState();
+  return normalizeCloudState(data.app_state as CloudAppState);
 }
 
 export async function saveUserData(

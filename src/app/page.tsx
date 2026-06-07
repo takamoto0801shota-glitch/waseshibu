@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BottomNav } from "@/components/BottomNav";
 import { DesirePicker } from "@/components/DesirePicker";
@@ -32,6 +32,13 @@ export default function HomePage() {
 
   const subjects = profile.subjects;
 
+  useEffect(() => {
+    if (authLoading || !user) return;
+    if (!profile.onboardingComplete) {
+      router.replace("/onboarding");
+    }
+  }, [authLoading, user, profile.onboardingComplete, router]);
+
   const commitHours = () => {
     const parsed = parseFloat(hoursText);
     if (Number.isNaN(parsed)) {
@@ -58,7 +65,7 @@ export default function HomePage() {
     todaySubjectIds
   );
 
-  if (authLoading || !user) {
+  if (authLoading || !user || !profile.onboardingComplete) {
     return (
       <div className="min-h-dvh bg-bg flex items-center justify-center">
         <p className="text-sm text-muted">読み込み中...</p>

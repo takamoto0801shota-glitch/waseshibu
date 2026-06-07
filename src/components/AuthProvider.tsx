@@ -14,6 +14,7 @@ import { validateSupabaseConfig } from "@/lib/supabase/env";
 import {
   clearOnboardingCache,
   clearSetupLock,
+  hasSetupInfo,
   isCloudSetupLocked,
   isSetupLockedForUser,
   loadLocalStateBackup,
@@ -27,7 +28,10 @@ import {
   ensureUserRow,
   loadUserData,
   saveUserData,
+  shouldPersistToCloud,
+  verifySetupSaved,
   type SaveUserDataOptions,
+  type SaveUserMeta,
 } from "@/lib/userData";
 import { AuthUser, CloudAppState } from "@/lib/types";
 import { useAppStore } from "@/store/useAppStore";
@@ -45,6 +49,14 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+function userMeta(user: AuthUser): SaveUserMeta {
+  return {
+    email: user.email,
+    displayName: user.displayName,
+    photoURL: user.photoURL,
+  };
+}
 
 function pickCloudState(): CloudAppState {
   const s = useAppStore.getState();
@@ -118,7 +130,7 @@ export function AuthProvider({
       if (isCloudSetupLocked(locked)) {
         lockSetupPermanently(uid);
       }
-      if (repairCloud && supabase && isCloudSetupLocked(locked)) {
+      if (repairCloud && supabase && shouldPersistToCloud(locked)) {
         await saveUserData(supabase, uid, locked).catch(() => {});
       }
     },
@@ -131,17 +143,22 @@ export function AuthProvider({
       loadingRef.current = true;
       setDataReady(false);
       try {
+        const backup = loadLocalStateBackup(uid);
         let cloud = await loadUserData(supabase, uid);
 
-        if (!cloud) {
-          cloud = loadLocalStateBackup(uid);
+        if (cloud && !hasSetupInfo(cloud.profile) && backup && hasSetupInfo(backup.profile)) {
+          cloud = enforceSetupLock(backup);
+        } else if (!cloud && backup) {
+          cloud = enforceSetupLock(backup);
         }
-        if (!cloud) {
+        if (!cloud || !hasSetupInfo(cloud.profile)) {
           await new Promise((r) => setTimeout(r, 400));
-          cloud = await loadUserData(supabase, uid);
-        }
-        if (!cloud) {
-          cloud = loadLocalStateBackup(uid);
+          const retry = await loadUserData(supabase, uid);
+          if (retry && hasSetupInfo(retry.profile)) {
+            cloud = retry;
+          } else if (backup && hasSetupInfo(backup.profile)) {
+            cloud = enforceSetupLock(backup);
+          }
         }
 
         if (cloud) {
@@ -178,13 +195,26 @@ export function AuthProvider({
   const saveCloudState = useCallback(
     async (options?: SaveUserDataOptions) => {
       if (!supabase || !user) return;
+      clearSaveTimer();
       const state = enforceSetupLock(pickCloudState());
-      await saveUserData(supabase, user.uid, state, options);
+      await saveUserData(
+        supabase,
+        user.uid,
+        state,
+        options,
+        userMeta(user)
+      );
       if (!options?.allowOnboardingReset) {
         await persistState(user.uid, state);
+        if (hasSetupInfo(state.profile)) {
+          const ok = await verifySetupSaved(supabase, user.uid);
+          if (!ok) {
+            throw new Error("学年・科目の保存を確認できませんでした");
+          }
+        }
       }
     },
-    [supabase, user, persistState]
+    [supabase, user, persistState, clearSaveTimer]
   );
 
   useEffect(() => {
@@ -267,7 +297,10 @@ export function AuthProvider({
       clearSaveTimer();
       saveTimer.current = setTimeout(() => {
         const state = enforceSetupLock(pickCloudState());
-        saveUserData(supabase, user.uid, state).catch(() => {});
+        if (!shouldPersistToCloud(state)) return;
+        saveUserData(supabase, user.uid, state, undefined, userMeta(user)).catch(
+          () => {}
+        );
         void persistState(user.uid, state);
       }, 800);
     });
@@ -298,9 +331,13 @@ export function AuthProvider({
     clearSaveTimer();
     const uid = user?.uid;
     if (user) {
-      await saveUserData(supabase, user.uid, pickCloudState()).catch(
-        () => {}
-      );
+      await saveUserData(
+        supabase,
+        user.uid,
+        pickCloudState(),
+        undefined,
+        userMeta(user)
+      ).catch(() => {});
     }
     if (uid) clearSetupLock(uid);
     clearOnboardingCache();

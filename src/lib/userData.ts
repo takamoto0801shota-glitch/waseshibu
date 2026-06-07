@@ -2,6 +2,7 @@ import { SupabaseClient, User } from "@supabase/supabase-js";
 import { DESIRE_PRESETS } from "@/lib/desires";
 import { filterSubjects } from "@/lib/exclusions";
 import {
+  hasSetupInfo,
   inferOnboardingComplete,
   isCloudSetupLocked,
   mergeLockedProfile,
@@ -111,6 +112,17 @@ export interface SaveUserDataOptions {
   allowOnboardingReset?: boolean;
 }
 
+export interface SaveUserMeta {
+  email: string;
+  displayName: string;
+  photoURL: string | null;
+}
+
+/** 空のプロフィールをクラウドへ書き込む必要があるか */
+export function shouldPersistToCloud(state: CloudAppState): boolean {
+  return !!state.setupLockedAt || hasSetupInfo(state.profile);
+}
+
 export async function ensureUserRow(
   supabase: SupabaseClient,
   user: User
@@ -123,13 +135,14 @@ export async function ensureUserRow(
     .maybeSingle();
 
   if (!data) {
-    await supabase.from("user_data").insert({
+    const { error } = await supabase.from("user_data").insert({
       uid: authUser.uid,
       email: authUser.email,
       display_name: authUser.displayName,
       photo_url: authUser.photoURL,
       app_state: defaultCloudState(),
     });
+    if (error) throw new Error(error.message);
   } else {
     await supabase
       .from("user_data")
@@ -152,19 +165,22 @@ export async function loadUserData(
     .eq("uid", uid)
     .maybeSingle();
 
-  if (error || !data?.app_state) return null;
-  return enforceSetupLock(data.app_state as CloudAppState);
+  if (error || !data) return null;
+  const raw = data.app_state as CloudAppState | null | undefined;
+  if (!raw || typeof raw !== "object") return null;
+  return enforceSetupLock(raw);
 }
 
 export async function saveUserData(
   supabase: SupabaseClient,
   uid: string,
   state: CloudAppState,
-  options?: SaveUserDataOptions
+  options?: SaveUserDataOptions,
+  meta?: SaveUserMeta
 ): Promise<void> {
   const { data: existing } = await supabase
     .from("user_data")
-    .select("app_state")
+    .select("app_state, email, display_name, photo_url")
     .eq("uid", uid)
     .maybeSingle();
 
@@ -192,10 +208,27 @@ export async function saveUserData(
     };
   }
 
+  const row = {
+    uid,
+    email: meta?.email ?? existing?.email ?? "",
+    display_name: meta?.displayName ?? existing?.display_name ?? "",
+    photo_url: meta?.photoURL ?? existing?.photo_url ?? null,
+    app_state: toSave,
+    updated_at: new Date().toISOString(),
+  };
+
   const { error } = await supabase
     .from("user_data")
-    .update({ app_state: toSave, updated_at: new Date().toISOString() })
-    .eq("uid", uid);
+    .upsert(row, { onConflict: "uid" });
 
   if (error) throw new Error(error.message);
+}
+
+/** 保存後に学年・科目がクラウドに反映されたか確認 */
+export async function verifySetupSaved(
+  supabase: SupabaseClient,
+  uid: string
+): Promise<boolean> {
+  const loaded = await loadUserData(supabase, uid);
+  return !!loaded && hasSetupInfo(loaded.profile);
 }

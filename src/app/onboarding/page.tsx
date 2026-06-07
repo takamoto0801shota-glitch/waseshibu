@@ -45,8 +45,10 @@ export default function OnboardingPage() {
       await saveCloudState();
       if (user) lockSetupPermanently(user.uid);
       router.replace("/");
-    } catch {
-      setSaveError("保存に失敗しました。もう一度お試しください。");
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : "保存に失敗しました。もう一度お試しください。";
+      setSaveError(msg);
     } finally {
       setSaving(false);
     }

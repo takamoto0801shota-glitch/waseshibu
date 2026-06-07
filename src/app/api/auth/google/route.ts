@@ -1,9 +1,12 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseConfig, validateSupabaseConfig } from "@/lib/supabase/env";
 import { getRequestOrigin } from "@/lib/supabase/origin";
+import {
+  applyPendingCookies,
+  createRouteHandlerClient,
+} from "@/lib/supabase/route-handler";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const origin = getRequestOrigin(request);
   const { url, anonKey } = getSupabaseConfig();
   const configError = validateSupabaseConfig(url, anonKey);
@@ -14,7 +17,8 @@ export async function GET(request: Request) {
     );
   }
 
-  const supabase = await createClient();
+  const { supabase, pendingCookies } = createRouteHandlerClient(request);
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
@@ -23,8 +27,11 @@ export async function GET(request: Request) {
   });
 
   if (error || !data.url) {
-    return NextResponse.redirect(`${origin}/login?error=auth`);
+    const msg = encodeURIComponent(error?.message ?? "OAuth開始に失敗");
+    return NextResponse.redirect(`${origin}/login?error=auth&message=${msg}`);
   }
 
-  return NextResponse.redirect(data.url);
+  const response = NextResponse.redirect(data.url);
+  applyPendingCookies(response, pendingCookies);
+  return response;
 }

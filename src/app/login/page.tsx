@@ -35,7 +35,9 @@ function LoginContent() {
       setError(decodeURIComponent(msg));
     } else if (err === "auth") {
       setError(
-        "ログインに失敗しました。Supabase の Redirect URL 設定を確認してください。"
+        msg
+          ? decodeURIComponent(msg)
+          : "ログインに失敗しました。Supabase の Redirect URL 設定を確認してください。"
       );
     }
   }, [searchParams]);

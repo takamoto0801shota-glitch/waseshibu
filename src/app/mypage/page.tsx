@@ -86,7 +86,7 @@ export default function MyPage() {
   return (
     <div className="min-h-dvh bg-bg pb-24">
       <main className="max-w-md mx-auto px-5 pt-8">
-        <h1 className="text-xl font-bold mb-4">マイページ</h1>
+        <h1 className="text-xl font-bold mb-4 pl-12">マイページ</h1>
 
         {user && (
           <div className="sketch-border bg-card p-4 mb-5 flex items-center gap-3">

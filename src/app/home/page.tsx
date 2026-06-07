@@ -163,7 +163,7 @@ export default function HomePage() {
   return (
     <div className="min-h-dvh bg-bg pb-24">
       <main className="max-w-md mx-auto px-5 pt-8">
-        <div className="flex justify-end mb-6">
+        <div className="flex justify-end mb-6 pl-12">
           <ModeDropdown
             value={profile.mode}
             onChange={setMode}

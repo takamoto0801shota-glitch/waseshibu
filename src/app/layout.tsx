@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
+import { AccountAvatar } from "@/components/AccountAvatar";
 import { AppRouteGuard } from "@/components/AppRouteGuard";
 import { AuthProvider } from "@/components/AuthProvider";
 import { getSupabaseConfig } from "@/lib/supabase/env";
@@ -26,6 +27,7 @@ export default function RootLayout({
       <body>
         <AuthProvider supabaseUrl={url} supabaseAnonKey={anonKey}>
           <Suspense fallback={null}>
+            <AccountAvatar />
             <AppRouteGuard>{children}</AppRouteGuard>
           </Suspense>
         </AuthProvider>

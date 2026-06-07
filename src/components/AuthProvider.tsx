@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/client";
 import { validateSupabaseConfig } from "@/lib/supabase/env";
 import {
   authUserFromSupabase,
+  ensureReadyProfile,
   ensureUserRow,
   loadUserData,
   saveUserData,
@@ -89,9 +90,10 @@ export function AuthProvider({
   const loadAndHydrate = useCallback(
     async (uid: string) => {
       if (!supabase) return;
-      const cloud = await loadUserData(supabase, uid);
+      const cloud = ensureReadyProfile(await loadUserData(supabase, uid));
       hydrateStore(cloud);
       hydrated.current = true;
+      await saveUserData(supabase, uid, cloud).catch(() => {});
     },
     [supabase, hydrateStore]
   );

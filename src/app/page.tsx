@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BottomNav } from "@/components/BottomNav";
 import { DesirePicker } from "@/components/DesirePicker";
@@ -15,7 +15,7 @@ import { useAppStore } from "@/store/useAppStore";
 
 export default function HomePage() {
   const router = useRouter();
-  const { loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const profile = useAppStore((s) => s.profile);
   const todayMinutes = useAppStore((s) => s.todayMinutes);
   const todaySubjectIds = useAppStore((s) => s.todaySubjectIds);
@@ -31,13 +31,6 @@ export default function HomePage() {
   const [subjectSheetOpen, setSubjectSheetOpen] = useState(false);
 
   const subjects = profile.subjects;
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (!profile.onboardingComplete) {
-      router.replace("/onboarding");
-    }
-  }, [authLoading, profile.onboardingComplete, router]);
 
   const commitHours = () => {
     const parsed = parseFloat(hoursText);
@@ -65,7 +58,7 @@ export default function HomePage() {
     todaySubjectIds
   );
 
-  if (authLoading || !profile.onboardingComplete) {
+  if (authLoading || !user) {
     return (
       <div className="min-h-dvh bg-bg flex items-center justify-center">
         <p className="text-sm text-muted">読み込み中...</p>

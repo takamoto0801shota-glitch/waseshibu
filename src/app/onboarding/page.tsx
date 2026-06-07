@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DesirePicker } from "@/components/DesirePicker";
 import { GradePicker } from "@/components/GradePicker";
@@ -12,7 +12,8 @@ import { useAppStore } from "@/store/useAppStore";
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const onboardingComplete = useAppStore((s) => s.profile.onboardingComplete);
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
 
   const [step, setStep] = useState(0);
@@ -38,7 +39,21 @@ export default function OnboardingPage() {
     router.replace("/");
   };
 
+  useEffect(() => {
+    if (!authLoading && user && onboardingComplete) {
+      router.replace("/");
+    }
+  }, [authLoading, user, onboardingComplete, router]);
+
   if (authLoading) {
+    return (
+      <div className="min-h-dvh bg-bg flex items-center justify-center">
+        <p className="text-sm text-muted">読み込み中...</p>
+      </div>
+    );
+  }
+
+  if (user && onboardingComplete) {
     return (
       <div className="min-h-dvh bg-bg flex items-center justify-center">
         <p className="text-sm text-muted">読み込み中...</p>

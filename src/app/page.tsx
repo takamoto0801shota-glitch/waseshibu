@@ -14,14 +14,32 @@ import { hasSetupInfo, loadLocalStateBackup } from "@/lib/onboardingGate";
 import { UserDesire } from "@/lib/types";
 import { useAppStore } from "@/store/useAppStore";
 
+function clampMinutes(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+function parseHours(text: string, fallbackMinutes: number): number {
+  const parsed = parseFloat(text);
+  if (Number.isNaN(parsed)) return fallbackMinutes;
+  return clampMinutes(parsed * 60, 15, 480);
+}
+
+function parseRewardHours(text: string, fallbackMinutes: number): number {
+  const parsed = parseFloat(text);
+  if (Number.isNaN(parsed)) return fallbackMinutes;
+  return clampMinutes(parsed * 60, 5, 240);
+}
+
 export default function HomePage() {
   const router = useRouter();
   const { user, loading: authLoading, dataReady } = useAuth();
   const profile = useAppStore((s) => s.profile);
   const todayMinutes = useAppStore((s) => s.todayMinutes);
+  const todayRewardMinutes = useAppStore((s) => s.todayRewardMinutes);
   const todayRewardDesires = useAppStore((s) => s.todayRewardDesires);
   const todaySubjectIds = useAppStore((s) => s.todaySubjectIds);
   const setTodayMinutes = useAppStore((s) => s.setTodayMinutes);
+  const setTodayRewardMinutes = useAppStore((s) => s.setTodayRewardMinutes);
   const setTodayRewardDesires = useAppStore((s) => s.setTodayRewardDesires);
   const setTodaySubjectIds = useAppStore((s) => s.setTodaySubjectIds);
   const setMode = useAppStore((s) => s.setMode);
@@ -29,7 +47,12 @@ export default function HomePage() {
 
   const [selected, setSelected] = useState<UserDesire[]>([]);
   const [loading, setLoading] = useState(false);
-  const [hoursText, setHoursText] = useState(() => String(todayMinutes / 60));
+  const [studyHoursText, setStudyHoursText] = useState(() =>
+    String(todayMinutes / 60)
+  );
+  const [rewardHoursText, setRewardHoursText] = useState(() =>
+    String(todayRewardMinutes / 60)
+  );
   const [subjectSheetOpen, setSubjectSheetOpen] = useState(false);
 
   const subjects = profile.subjects;
@@ -51,6 +74,7 @@ export default function HomePage() {
         setupLockedAt: backup.setupLockedAt ?? null,
         profile: backup.profile,
         todayMinutes: backup.todayMinutes,
+        todayRewardMinutes: backup.todayRewardMinutes ?? 30,
         todayRewardDesires: backup.todayRewardDesires,
         todaySubjectIds: backup.todaySubjectIds,
       });
@@ -60,8 +84,12 @@ export default function HomePage() {
   }, [appReady, profile, user, router]);
 
   useEffect(() => {
-    setHoursText(String(todayMinutes / 60));
+    setStudyHoursText(String(todayMinutes / 60));
   }, [todayMinutes]);
+
+  useEffect(() => {
+    setRewardHoursText(String(todayRewardMinutes / 60));
+  }, [todayRewardMinutes]);
 
   useEffect(() => {
     if (todayRewardDesires.length > 0) {
@@ -69,16 +97,16 @@ export default function HomePage() {
     }
   }, [todayRewardDesires]);
 
-  const commitHours = () => {
-    const parsed = parseFloat(hoursText);
-    if (Number.isNaN(parsed)) {
-      setHoursText(String(todayMinutes / 60));
-      return;
-    }
-    const clamped = Math.min(8, Math.max(0.5, parsed));
-    const mins = Math.round(clamped * 60);
+  const commitStudyHours = () => {
+    const mins = parseHours(studyHoursText, todayMinutes);
     setTodayMinutes(mins);
-    setHoursText(String(clamped));
+    setStudyHoursText(String(mins / 60));
+  };
+
+  const commitRewardHours = () => {
+    const mins = parseRewardHours(rewardHoursText, todayRewardMinutes);
+    setTodayRewardMinutes(mins);
+    setRewardHoursText(String(mins / 60));
   };
 
   const handlePlan = async () => {
@@ -114,26 +142,49 @@ export default function HomePage() {
           />
         </div>
 
-        <p className="text-xs font-bold text-muted mb-3">今日の時間</p>
-        <div className="sketch-border bg-card p-8 mb-6 text-center">
-          <input
-            type="text"
-            inputMode="decimal"
-            value={hoursText}
-            onChange={(e) => setHoursText(e.target.value)}
-            onBlur={commitHours}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                commitHours();
-                (e.target as HTMLInputElement).blur();
-              }
-            }}
-            placeholder="2.5"
-            className="w-full text-center text-5xl font-bold bg-transparent outline-none border-b-2 border-border pb-2 mb-1"
-          />
-          <p className="text-sm text-muted">
-            勉強＋自由時間（{todayMinutes}分）
-          </p>
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <div>
+            <p className="text-xs font-bold text-muted mb-2">目標勉強時間</p>
+            <div className="sketch-border bg-card p-5 text-center h-full flex flex-col justify-center">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={studyHoursText}
+                onChange={(e) => setStudyHoursText(e.target.value)}
+                onBlur={commitStudyHours}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    commitStudyHours();
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                placeholder="1.5"
+                className="w-full text-center text-4xl font-bold bg-transparent outline-none border-b-2 border-border pb-2 mb-1"
+              />
+              <p className="text-xs text-muted">{todayMinutes}分</p>
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-bold text-muted mb-2">自由時間</p>
+            <div className="sketch-border bg-card p-5 text-center h-full flex flex-col justify-center">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={rewardHoursText}
+                onChange={(e) => setRewardHoursText(e.target.value)}
+                onBlur={commitRewardHours}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    commitRewardHours();
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                placeholder="0.5"
+                className="w-full text-center text-4xl font-bold bg-transparent outline-none border-b-2 border-reward pb-2 mb-1 text-reward"
+              />
+              <p className="text-xs text-muted">{todayRewardMinutes}分</p>
+            </div>
+          </div>
         </div>
 
         <p className="text-xs font-bold text-muted mb-3">今日やる科目</p>

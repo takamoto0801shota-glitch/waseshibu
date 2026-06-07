@@ -1,6 +1,9 @@
 "use client";
 
-import { getTotalDoneMinutes } from "@/lib/planGenerator";
+import {
+  getTargetTotalMinutes,
+  getTotalDoneMinutes,
+} from "@/lib/planGenerator";
 import { rhythmHint } from "@/lib/rhythmCoach";
 import { DailyPlan } from "@/lib/types";
 
@@ -10,10 +13,8 @@ interface SessionLogProps {
 
 export function SessionLog({ plan }: SessionLogProps) {
   const done = getTotalDoneMinutes(plan);
-  const progress = Math.min(
-    100,
-    Math.round((done / plan.targetStudyMinutes) * 100)
-  );
+  const target = getTargetTotalMinutes(plan);
+  const progress = Math.min(100, Math.round((done / target) * 100));
 
   return (
     <div className="space-y-4">
@@ -21,7 +22,15 @@ export function SessionLog({ plan }: SessionLogProps) {
         <div className="flex justify-between text-sm mb-2">
           <span className="text-muted">今日の消化</span>
           <span className="font-bold">
-            {done}/{plan.targetStudyMinutes}分
+            {done}/{target}分
+          </span>
+        </div>
+        <div className="flex justify-between text-xs text-muted mb-2">
+          <span>
+            勉強 {plan.studyDoneMinutes}/{plan.targetStudyMinutes}分
+          </span>
+          <span>
+            自由 {plan.rewardDoneMinutes}/{plan.targetRewardMinutes}分
           </span>
         </div>
         <div className="h-2 bg-bg rounded-full overflow-hidden border border-border">

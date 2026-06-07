@@ -27,7 +27,8 @@ async function refineWithOpenAI(
 
 【モード】${body.plan.mode}
 【リズム】勉強${body.plan.rhythm.studyMinutes}分→自由${body.plan.rhythm.rewardMinutes}分
-【残り時間】${body.plan.targetStudyMinutes - body.plan.studyDoneMinutes - body.plan.rewardDoneMinutes}分
+【残り勉強】${body.plan.targetStudyMinutes - body.plan.studyDoneMinutes}分
+【残り自由】${(body.plan.targetRewardMinutes ?? 0) - body.plan.rewardDoneMinutes}分
 【投影ステップ】${upcoming || "なし"}
 
 ルール:

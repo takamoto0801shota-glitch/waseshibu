@@ -1,6 +1,9 @@
 "use client";
 
-import { getLiveTotalMinutes } from "@/lib/planGenerator";
+import {
+  getLiveTotalMinutes,
+  getTargetTotalMinutes,
+} from "@/lib/planGenerator";
 import { DailyPlan, ScheduleBlock } from "@/lib/types";
 
 interface TodayDigestBarProps {
@@ -19,10 +22,8 @@ export function TodayDigestBar({
     currentBlock,
     remainingSeconds
   );
-  const percent = Math.min(
-    100,
-    (liveMinutes / plan.targetStudyMinutes) * 100
-  );
+  const targetTotal = getTargetTotalMinutes(plan);
+  const percent = Math.min(100, (liveMinutes / targetTotal) * 100);
 
   return (
     <div className="w-full px-5 pt-6 pb-3">
@@ -30,7 +31,15 @@ export function TodayDigestBar({
         <div className="flex justify-between text-sm mb-2">
           <span className="text-muted">今日の消化</span>
           <span className="font-bold tabular-nums">
-            {Math.round(liveMinutes)}/{plan.targetStudyMinutes}分
+            {Math.round(liveMinutes)}/{targetTotal}分
+          </span>
+        </div>
+        <div className="flex justify-between text-xs text-muted mb-2">
+          <span>
+            勉強 {plan.studyDoneMinutes}/{plan.targetStudyMinutes}分
+          </span>
+          <span>
+            自由 {plan.rewardDoneMinutes}/{plan.targetRewardMinutes}分
           </span>
         </div>
         <div className="h-2 bg-bg rounded-full overflow-hidden border border-border">

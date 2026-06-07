@@ -3,6 +3,7 @@ import {
   DailyPlan,
   MODE_BASELINE,
   MODE_CYCLE,
+  MODE_STUDY_REWARD_RATIO,
   MoodCheck,
   RhythmState,
   StudyMode,
@@ -42,11 +43,52 @@ const STUDY_MAX = 90;
 const REWARD_MIN = 5;
 const REWARD_MAX = 30;
 
+function roundToNiceMinutes(value: number): number {
+  if (value <= 5) return Math.max(5, Math.round(value));
+  return Math.round(value / 5) * 5;
+}
+
+/** モード比率に沿ったキリのいい交互時間 */
+export function rhythmFromRatio(mode: StudyMode, studyMinutes: number): number {
+  const ratio = MODE_STUDY_REWARD_RATIO[mode];
+  return roundToNiceMinutes((studyMinutes / ratio.study) * ratio.reward);
+}
+
 export function getBaselineRhythm(mode: StudyMode): RhythmState {
   const base = MODE_BASELINE[mode];
   return {
     studyMinutes: base.studyMinutes,
     rewardMinutes: base.rewardMinutes,
+    consecutiveTough: 0,
+  };
+}
+
+/** 目標勉強・自由時間とモード比率から最適な交互リズムを決める */
+export function optimizeRhythmForBudget(
+  mode: StudyMode,
+  studyBudget: number,
+  rewardBudget: number
+): RhythmState {
+  const base = getBaselineRhythm(mode);
+  let study = base.studyMinutes;
+  let reward = rhythmFromRatio(mode, study);
+
+  while (study > studyBudget && study > STUDY_MIN) {
+    study = Math.max(STUDY_MIN, roundToNiceMinutes(study * 0.75));
+    reward = rhythmFromRatio(mode, study);
+  }
+  while (reward > rewardBudget && reward > 5) {
+    reward = Math.max(5, roundToNiceMinutes(reward * 0.75));
+    study = roundToNiceMinutes((reward / MODE_STUDY_REWARD_RATIO[mode].reward) * MODE_STUDY_REWARD_RATIO[mode].study);
+  }
+
+  study = Math.min(study, Math.max(STUDY_MIN, studyBudget));
+  reward = Math.min(rhythmFromRatio(mode, study), Math.max(5, rewardBudget));
+  reward = Math.max(5, Math.min(reward, REWARD_MAX));
+
+  return {
+    studyMinutes: study,
+    rewardMinutes: reward,
     consecutiveTough: 0,
   };
 }
@@ -127,10 +169,7 @@ export function peekNextSubjectName(
   pendingRewardMinutes = 0
 ): string | null {
   const remaining =
-    plan.targetStudyMinutes -
-    plan.studyDoneMinutes -
-    plan.rewardDoneMinutes -
-    pendingRewardMinutes;
+    plan.targetStudyMinutes - plan.studyDoneMinutes - pendingRewardMinutes;
   if (remaining <= 0) return null;
 
   const activeIds = plan.todaySubjectIds ?? todaySubjectIds;

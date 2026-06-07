@@ -1,4 +1,9 @@
-import { getRemainingTotalMinutes, getTotalDoneMinutes } from "./planGenerator";
+import {
+  getRemainingRewardMinutes,
+  getRemainingStudyMinutes,
+  isPlanComplete,
+  normalizeDailyPlan,
+} from "./planGenerator";
 import {
   computeNextStudyMinutes,
   computeRewardMinutes,
@@ -39,10 +44,11 @@ export function buildRoadmap(
     sessionPhase?: SessionPhase | null;
   }
 ): RoadmapStep[] {
+  const normalized = normalizeDailyPlan(plan);
   const steps: RoadmapStep[] = [];
-  const activeIds = plan.todaySubjectIds ?? options.todaySubjectIds;
+  const activeIds = normalized.todaySubjectIds ?? options.todaySubjectIds;
 
-  for (const entry of plan.log) {
+  for (const entry of normalized.log) {
     steps.push({
       id: entry.id,
       type: entry.type,
@@ -52,9 +58,10 @@ export function buildRoadmap(
     });
   }
 
-  let rem = getRemainingTotalMinutes(plan);
-  let sessionIndex = plan.sessionCount;
-  const rhythm = plan.rhythm;
+  let remStudy = getRemainingStudyMinutes(normalized);
+  let remReward = getRemainingRewardMinutes(normalized);
+  let sessionIndex = normalized.sessionCount;
+  const rhythm = normalized.rhythm;
 
   const { currentBlock, sessionPhase } = options;
 
@@ -72,7 +79,7 @@ export function buildRoadmap(
     });
     markFirstUpcoming = false;
 
-    const rewardMins = computeRewardMinutes(rhythm, rem);
+    const rewardMins = computeRewardMinutes(rhythm, remReward);
     if (rewardMins > 0) {
       steps.push({
         id: `proj-reward-${sessionIndex}`,
@@ -81,7 +88,7 @@ export function buildRoadmap(
         status: "upcoming",
         minutes: rewardMins,
       });
-      rem -= rewardMins;
+      remReward -= rewardMins;
       sessionIndex++;
       projected++;
     }
@@ -96,35 +103,48 @@ export function buildRoadmap(
       status: "current",
       minutes: currentBlock.durationMinutes,
     });
-    rem = Math.max(0, rem - currentBlock.durationMinutes);
-    if (currentBlock.type === "reward") {
+    if (currentBlock.type === "study") {
+      remStudy = Math.max(0, remStudy - currentBlock.durationMinutes);
+    } else {
+      remReward = Math.max(0, remReward - currentBlock.durationMinutes);
       sessionIndex += 1;
     }
   }
 
-  while (rem > 0 && projected < MAX_PROJECTED) {
-    const { minutes, isReview } = computeNextStudyMinutes(rhythm, rem);
-    if (minutes <= 0) break;
+  while (
+    (remStudy > 0 || remReward > 0) &&
+    projected < MAX_PROJECTED
+  ) {
+    if (remStudy > 0) {
+      const { minutes, isReview } = computeNextStudyMinutes(
+        rhythm,
+        remStudy
+      );
+      if (minutes <= 0) break;
 
-    const subject = isReview
-      ? pickNextSubject(profile, 0, activeIds)
-      : pickNextSubject(profile, sessionIndex, activeIds);
-    const status = markFirstUpcoming ? "current" : "upcoming";
-    steps.push({
-      id: `proj-study-${sessionIndex}-${projected}`,
-      type: "study",
-      label: isReview
-        ? `${subject.name}${minutes}分（復習）`
-        : studyLabel(subject.name, minutes),
-      status,
-      minutes,
-    });
-    if (markFirstUpcoming) markFirstUpcoming = false;
-    rem -= minutes;
-    projected++;
-    if (rem <= 0) break;
+      const subject = isReview
+        ? pickNextSubject(profile, 0, activeIds)
+        : pickNextSubject(profile, sessionIndex, activeIds);
+      const status = markFirstUpcoming ? "current" : "upcoming";
+      steps.push({
+        id: `proj-study-${sessionIndex}-${projected}`,
+        type: "study",
+        label: isReview
+          ? `${subject.name}${minutes}分（復習）`
+          : studyLabel(subject.name, minutes),
+        status,
+        minutes,
+      });
+      if (markFirstUpcoming) markFirstUpcoming = false;
+      remStudy -= minutes;
+      projected++;
+    } else {
+      break;
+    }
 
-    const rewardMins = computeRewardMinutes(rhythm, rem);
+    if (remReward <= 0) continue;
+
+    const rewardMins = computeRewardMinutes(rhythm, remReward);
     if (rewardMins <= 0) break;
 
     steps.push({
@@ -134,12 +154,12 @@ export function buildRoadmap(
       status: "upcoming",
       minutes: rewardMins,
     });
-    rem -= rewardMins;
+    remReward -= rewardMins;
     sessionIndex++;
     projected++;
   }
 
-  if (getTotalDoneMinutes(plan) >= plan.targetStudyMinutes || rem <= 0) {
+  if (isPlanComplete(normalized) || (remStudy <= 0 && remReward <= 0)) {
     steps.push({
       id: "goal",
       type: "goal",
@@ -155,7 +175,6 @@ export function buildRoadmap(
     });
   }
 
-  // 未開始かつ current なし → 最初の upcoming を current に
   if (
     !currentBlock &&
     sessionPhase !== "mood_check" &&

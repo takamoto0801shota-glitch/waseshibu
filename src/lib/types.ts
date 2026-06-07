@@ -7,25 +7,36 @@ export const MODE_LABELS: Record<StudyMode, string> = {
   top_grade: "学年一位モード",
 };
 
-/** 開始リズム（AIがセッションごとに調整） */
+/** モードごとの勉強:自由の目標比率 */
+export const MODE_STUDY_REWARD_RATIO: Record<
+  StudyMode,
+  { study: number; reward: number }
+> = {
+  light: { study: 2, reward: 1 },
+  self_study: { study: 3, reward: 1 },
+  serious: { study: 4, reward: 1 },
+  top_grade: { study: 5, reward: 1 },
+};
+
+/** 開始リズム（比率に基づくキリのいい交互時間） */
 export const MODE_BASELINE: Record<
   StudyMode,
   { studyMinutes: number; rewardMinutes: number }
 > = {
-  light: { studyMinutes: 30, rewardMinutes: 10 },
-  self_study: { studyMinutes: 45, rewardMinutes: 10 },
-  serious: { studyMinutes: 60, rewardMinutes: 10 },
-  top_grade: { studyMinutes: 90, rewardMinutes: 10 },
+  light: { studyMinutes: 30, rewardMinutes: 15 },
+  self_study: { studyMinutes: 45, rewardMinutes: 15 },
+  serious: { studyMinutes: 60, rewardMinutes: 15 },
+  top_grade: { studyMinutes: 75, rewardMinutes: 15 },
 };
 
 /** @deprecated MODE_BASELINE を使用 */
 export const MODE_CYCLE = MODE_BASELINE;
 
 export const MODE_HINTS: Record<StudyMode, string> = {
-  light: "開始 30分 → 10分自由",
-  self_study: "開始 45分 → 10分自由",
-  serious: "開始 60分 → 10分自由",
-  top_grade: "開始 90分 → 10分自由",
+  light: "勉強:自由 ≈ 2:1",
+  self_study: "勉強:自由 ≈ 3:1",
+  serious: "勉強:自由 ≈ 4:1",
+  top_grade: "勉強:自由 ≈ 5:1",
 };
 
 export type MoodCheck = "great" | "normal" | "tough";
@@ -106,6 +117,7 @@ export interface RoadmapStep {
 export interface DailyPlan {
   mode: StudyMode;
   targetStudyMinutes: number;
+  targetRewardMinutes: number;
   rhythm: RhythmState;
   log: SessionLogEntry[];
   studyDoneMinutes: number;
@@ -157,6 +169,7 @@ export interface CloudAppState {
   setupLockedAt?: string | null;
   profile: UserProfile;
   todayMinutes: number;
+  todayRewardMinutes: number;
   todayRewardDesires: UserDesire[];
   todaySubjectIds: string[];
   plan: DailyPlan | null;

@@ -39,7 +39,8 @@ export function defaultCloudState(): CloudAppState {
   return {
     setupLockedAt: null,
     profile: defaultProfile(),
-    todayMinutes: 150,
+    todayMinutes: 90,
+    todayRewardMinutes: 30,
     todayRewardDesires: [],
     todaySubjectIds: [],
     plan: null,
@@ -95,7 +96,17 @@ export function normalizeCloudState(raw: CloudAppState): CloudAppState {
   return {
     setupLockedAt: raw.setupLockedAt ?? null,
     profile,
-    todayMinutes: raw.todayMinutes ?? 150,
+    todayMinutes: (() => {
+      const study = raw.todayMinutes ?? 90;
+      if (raw.todayRewardMinutes != null) return study;
+      const reward = Math.max(5, Math.round(study / 3));
+      return Math.max(15, study - reward);
+    })(),
+    todayRewardMinutes: (() => {
+      if (raw.todayRewardMinutes != null) return raw.todayRewardMinutes;
+      const study = raw.todayMinutes ?? 90;
+      return Math.max(5, Math.round(study / 3));
+    })(),
     todayRewardDesires: raw.todayRewardDesires ?? [],
     todaySubjectIds,
     plan,

@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { filterSubjects } from "@/lib/exclusions";
-import { requireUser, unauthorized } from "@/lib/supabase/api-auth";
 import { createDailyPlan } from "@/lib/planGenerator";
-import { rhythmHint, getBaselineRhythm } from "@/lib/rhythmCoach";
+import { rhythmHint } from "@/lib/rhythmCoach";
+import { requireUser, unauthorized } from "@/lib/supabase/api-auth";
 import { UserProfile } from "@/lib/types";
-import { MODE_LABELS } from "@/lib/types";
+import { MODE_HINTS, MODE_LABELS } from "@/lib/types";
 
 interface PlanRequest {
   profile: UserProfile;
-  todayMinutes: number;
+  todayStudyMinutes?: number;
+  todayRewardMinutes?: number;
+  /** @deprecated */
+  todayMinutes?: number;
 }
 
 export async function POST(request: NextRequest) {
@@ -19,12 +22,13 @@ export async function POST(request: NextRequest) {
       ...body.profile,
       subjects: filterSubjects(body.profile.subjects),
     };
-    const plan = createDailyPlan(profile, body.todayMinutes ?? 150);
-    const baseline = getBaselineRhythm(plan.mode);
+    const studyMinutes = body.todayStudyMinutes ?? body.todayMinutes ?? 90;
+    const rewardMinutes = body.todayRewardMinutes ?? 30;
+    const plan = createDailyPlan(profile, studyMinutes, rewardMinutes);
 
     return NextResponse.json({
       ...plan,
-      coachMessage: `${MODE_LABELS[plan.mode]}でスタート。設定時間（勉強＋自由時間）は${body.todayMinutes ?? 150}分。${rhythmHint(baseline)}から調整します。`,
+      coachMessage: `${MODE_LABELS[plan.mode]}（${MODE_HINTS[plan.mode]}）。勉強${studyMinutes}分・自由${rewardMinutes}分を${rhythmHint(plan.rhythm)}の交互で進めます。`,
     });
   } catch {
     return NextResponse.json({ error: "生成失敗" }, { status: 500 });

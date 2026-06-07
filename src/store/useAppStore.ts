@@ -7,8 +7,10 @@ import { defaultProfile } from "@/lib/userData";
 import { DESIRE_PRESETS } from "@/lib/desires";
 import {
   createDailyPlan,
-  getRemainingTotalMinutes,
+  getRemainingRewardMinutes,
+  getRemainingStudyMinutes,
   getTotalDoneMinutes,
+  isPlanComplete,
 } from "@/lib/planGenerator";
 import {
   adjustRhythm,
@@ -39,6 +41,7 @@ interface AppState {
   setupLockedAt: string | null;
   profile: UserProfile;
   todayMinutes: number;
+  todayRewardMinutes: number;
   todayRewardDesires: UserDesire[];
   todaySubjectIds: string[];
   plan: DailyPlan | null;
@@ -59,6 +62,7 @@ interface AppState {
   setTestDate: (testDate: string) => void;
   setDesires: (desires: UserDesire[]) => void;
   setTodayMinutes: (minutes: number) => void;
+  setTodayRewardMinutes: (minutes: number) => void;
   setTodayRewardDesires: (desires: UserDesire[]) => void;
   setTodaySubjectIds: (ids: string[]) => void;
   initDailyPlan: () => void;
@@ -97,7 +101,8 @@ function startBlock(block: ScheduleBlock, autoRun: boolean) {
 const initialState = {
   setupLockedAt: null as string | null,
   profile: defaultProfile(),
-  todayMinutes: 150,
+  todayMinutes: 90,
+  todayRewardMinutes: 30,
   todayRewardDesires: [] as UserDesire[],
   todaySubjectIds: [] as string[],
   plan: null as DailyPlan | null,
@@ -144,6 +149,9 @@ export const useAppStore = create<AppState>()((set, get) => ({
 
       setTodayMinutes: (minutes) => set({ todayMinutes: minutes }),
 
+      setTodayRewardMinutes: (minutes) =>
+        set({ todayRewardMinutes: minutes }),
+
       setTodayRewardDesires: (desires) =>
         set({ todayRewardDesires: desires }),
 
@@ -152,7 +160,11 @@ export const useAppStore = create<AppState>()((set, get) => ({
       initDailyPlan: () => {
         const s = get();
         const plan = {
-          ...createDailyPlan(s.profile, s.todayMinutes),
+          ...createDailyPlan(
+            s.profile,
+            s.todayMinutes,
+            s.todayRewardMinutes
+          ),
           todaySubjectIds: s.todaySubjectIds,
         };
         set({ plan, currentBlock: null, sessionPhase: null });
@@ -166,7 +178,8 @@ export const useAppStore = create<AppState>()((set, get) => ({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               profile: s.profile,
-              todayMinutes: s.todayMinutes,
+              todayStudyMinutes: s.todayMinutes,
+              todayRewardMinutes: s.todayRewardMinutes,
             }),
           });
           if (res.ok) {
@@ -189,12 +202,12 @@ export const useAppStore = create<AppState>()((set, get) => ({
         const s = get();
         if (!s.plan) return;
 
-        const remaining = getRemainingTotalMinutes(s.plan);
-        if (remaining <= 0) return;
+        const remainingStudy = getRemainingStudyMinutes(s.plan);
+        if (remainingStudy <= 0) return;
 
         const { minutes, isReview } = computeNextStudyMinutes(
           s.plan.rhythm,
-          remaining
+          remainingStudy
         );
         const activeIds =
           s.plan.todaySubjectIds ?? s.todaySubjectIds;
@@ -229,7 +242,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
           log: [...plan.log, logEntryFromBlock(currentBlock)],
         };
 
-        if (getRemainingTotalMinutes(updatedPlan) <= 0) {
+        if (isPlanComplete(updatedPlan)) {
           set({
             plan: updatedPlan,
             currentBlock: null,
@@ -242,8 +255,10 @@ export const useAppStore = create<AppState>()((set, get) => ({
 
         set({
           plan: updatedPlan,
+          currentBlock: null,
           sessionPhase: "mood_check",
           isRunning: false,
+          remainingSeconds: 0,
         });
         return false;
       },
@@ -265,7 +280,10 @@ export const useAppStore = create<AppState>()((set, get) => ({
               rhythm: plan.rhythm,
               mode: plan.mode,
               totalDoneMinutes: getTotalDoneMinutes(plan),
-              targetTotalMinutes: plan.targetStudyMinutes,
+              targetTotalMinutes:
+                plan.targetStudyMinutes + plan.targetRewardMinutes,
+              targetStudyMinutes: plan.targetStudyMinutes,
+              targetRewardMinutes: plan.targetRewardMinutes,
               sessionCount: plan.sessionCount,
               profile: s.profile,
             }),
@@ -289,15 +307,15 @@ export const useAppStore = create<AppState>()((set, get) => ({
           coachMessage,
         };
 
-        const remaining = getRemainingTotalMinutes(updatedPlan);
-        const rewardMins = computeRewardMinutes(rhythm, remaining);
+        const remReward = getRemainingRewardMinutes(updatedPlan);
+        const rewardMins = computeRewardMinutes(rhythm, remReward);
 
         if (rewardMins <= 0) {
           const withCount: DailyPlan = {
             ...updatedPlan,
             sessionCount: plan.sessionCount + 1,
           };
-          if (getRemainingTotalMinutes(withCount) <= 0) {
+          if (isPlanComplete(withCount)) {
             set({
               plan: withCount,
               currentBlock: null,
@@ -310,7 +328,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
 
           const { minutes, isReview } = computeNextStudyMinutes(
             withCount.rhythm,
-            getRemainingTotalMinutes(withCount)
+            getRemainingStudyMinutes(withCount)
           );
           const activeIds =
             withCount.todaySubjectIds ?? s.todaySubjectIds;
@@ -367,9 +385,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
           log,
         };
 
-        const remaining = getRemainingTotalMinutes(updatedPlan);
-
-        if (remaining <= 0) {
+        if (isPlanComplete(updatedPlan)) {
           set({
             plan: updatedPlan,
             currentBlock: null,
@@ -382,7 +398,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
 
         const { minutes, isReview } = computeNextStudyMinutes(
           updatedPlan.rhythm,
-          remaining
+          getRemainingStudyMinutes(updatedPlan)
         );
         const activeIds =
           updatedPlan.todaySubjectIds ?? s.todaySubjectIds;

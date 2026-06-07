@@ -20,6 +20,7 @@ export default function RoadmapPage() {
   const currentBlock = useAppStore((s) => s.currentBlock);
   const sessionPhase = useAppStore((s) => s.sessionPhase);
   const startSession = useAppStore((s) => s.startSession);
+  const resetSession = useAppStore((s) => s.resetSession);
 
   const [steps, setSteps] = useState<RoadmapStep[]>([]);
   const [loading, setLoading] = useState(false);
@@ -129,7 +130,10 @@ export default function RoadmapPage() {
         </button>
 
         <button
-          onClick={() => router.push("/")}
+          onClick={() => {
+            resetSession();
+            router.push("/");
+          }}
           className="sketch-btn w-full py-3 text-sm mt-3"
         >
           やり直す

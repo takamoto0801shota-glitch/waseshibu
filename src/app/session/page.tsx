@@ -40,6 +40,7 @@ export default function SessionPage() {
   const router = useRouter();
   const plan = useAppStore((s) => s.plan);
   const profile = useAppStore((s) => s.profile);
+  const todayRewardDesires = useAppStore((s) => s.todayRewardDesires);
   const todaySubjectIds = useAppStore((s) => s.todaySubjectIds);
   const currentBlock = useAppStore((s) => s.currentBlock);
   const sessionPhase = useAppStore((s) => s.sessionPhase);
@@ -59,12 +60,23 @@ export default function SessionPage() {
     if (!plan) router.replace("/");
   }, [plan, router]);
 
+  useEffect(() => {
+    if (!plan) return;
+    if (!currentBlock && sessionPhase !== "mood_check") {
+      router.replace("/menu");
+    }
+  }, [plan, currentBlock, sessionPhase, router]);
+
   const finishSession = () => {
     if (!plan) return;
+    const desireLabel =
+      todayRewardDesires[0]?.label ??
+      profile.desires[0]?.label ??
+      "フリータイム";
     addDailyRecord(
       plan.studyDoneMinutes,
       plan.rewardDoneMinutes,
-      "フリータイム"
+      desireLabel
     );
     router.push("/complete");
   };
@@ -102,7 +114,13 @@ export default function SessionPage() {
     );
   }
 
-  if (!currentBlock) return null;
+  if (!currentBlock) {
+    return (
+      <div className="min-h-dvh bg-bg flex items-center justify-center">
+        <p className="text-sm text-muted">読み込み中...</p>
+      </div>
+    );
+  }
 
   if (currentBlock.type === "study") {
     const studyPreview =

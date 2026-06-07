@@ -5,8 +5,17 @@ import { getSupabaseConfig } from "./env";
 const PUBLIC_PATHS = ["/login", "/auth/callback"];
 
 export async function updateSession(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+
   const { url, anonKey } = getSupabaseConfig();
   if (!url || !anonKey) {
+    if (!isPublic) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/login";
+      redirectUrl.searchParams.set("error", "config");
+      return NextResponse.redirect(redirectUrl);
+    }
     return NextResponse.next({ request });
   }
 
@@ -35,9 +44,6 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();

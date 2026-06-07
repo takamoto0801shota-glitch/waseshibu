@@ -21,6 +21,8 @@ export default function OnboardingPage() {
   const [grade, setGrade] = useState("");
   const [courseTrack, setCourseTrack] = useState<CourseTrack>("arts");
   const [subjects, setSubjects] = useState<SubjectConfig[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const handleGradeChange = (g: string) => {
     setGrade(g);
@@ -29,15 +31,24 @@ export default function OnboardingPage() {
   };
 
   const handleComplete = async () => {
-    completeOnboarding({
-      grade,
-      courseTrack,
-      desires,
-      subjects,
-      testDate: "",
-    });
-    await saveCloudState();
-    router.replace("/");
+    if (subjects.length < 1) return;
+    setSaving(true);
+    setSaveError("");
+    try {
+      completeOnboarding({
+        grade,
+        courseTrack,
+        desires,
+        subjects,
+        testDate: "",
+      });
+      await saveCloudState();
+      router.replace("/");
+    } catch {
+      setSaveError("保存に失敗しました。もう一度お試しください。");
+    } finally {
+      setSaving(false);
+    }
   };
 
   useEffect(() => {
@@ -131,6 +142,10 @@ export default function OnboardingPage() {
           </div>
         )}
 
+        {saveError && (
+          <p className="text-xs text-red-600 mt-6">{saveError}</p>
+        )}
+
         <div className="flex gap-3 mt-10">
           {step > 0 && (
             <button
@@ -151,9 +166,10 @@ export default function OnboardingPage() {
           ) : (
             <button
               onClick={handleComplete}
-              className="sketch-btn sketch-btn-primary flex-1 py-3"
+              disabled={subjects.length < 1 || saving}
+              className="sketch-btn sketch-btn-primary flex-1 py-3 disabled:opacity-50"
             >
-              はじめる
+              {saving ? "保存中..." : "はじめる"}
             </button>
           )}
         </div>

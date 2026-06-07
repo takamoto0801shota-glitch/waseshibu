@@ -18,6 +18,7 @@ export default function HomePage() {
   const { user, loading: authLoading, dataReady } = useAuth();
   const profile = useAppStore((s) => s.profile);
   const todayMinutes = useAppStore((s) => s.todayMinutes);
+  const todayRewardDesires = useAppStore((s) => s.todayRewardDesires);
   const todaySubjectIds = useAppStore((s) => s.todaySubjectIds);
   const setTodayMinutes = useAppStore((s) => s.setTodayMinutes);
   const setTodayRewardDesires = useAppStore((s) => s.setTodayRewardDesires);
@@ -38,6 +39,16 @@ export default function HomePage() {
       router.replace("/onboarding");
     }
   }, [authLoading, dataReady, user, profile.onboardingComplete, router]);
+
+  useEffect(() => {
+    setHoursText(String(todayMinutes / 60));
+  }, [todayMinutes]);
+
+  useEffect(() => {
+    if (todayRewardDesires.length > 0) {
+      setSelected(todayRewardDesires);
+    }
+  }, [todayRewardDesires]);
 
   const commitHours = () => {
     const parsed = parseFloat(hoursText);

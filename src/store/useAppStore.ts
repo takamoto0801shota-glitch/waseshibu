@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { todayStrJST } from "@/lib/dateUtils";
 import { defaultProfile } from "@/lib/userData";
 import { DESIRE_PRESETS } from "@/lib/desires";
 import {
@@ -74,10 +75,6 @@ interface AppState {
   resetSession: () => void;
   resetAll: () => void;
   setSubjects: (subjects: SubjectConfig[]) => void;
-}
-
-function todayStr(): string {
-  return new Date().toISOString().split("T")[0];
 }
 
 function defaultDesires(): UserDesire[] {
@@ -410,7 +407,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
       setRunning: (running) => set({ isRunning: running }),
 
       addDailyRecord: (studyMinutes, unlockedMinutes, desireLabel) => {
-        const today = todayStr();
+        const today = todayStrJST();
         set((s) => ({
           dailyRecords: [
             ...s.dailyRecords.filter((r) => r.date !== today),

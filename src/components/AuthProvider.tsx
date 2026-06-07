@@ -17,6 +17,7 @@ import {
   ensureUserRow,
   loadUserData,
   saveUserData,
+  type SaveUserDataOptions,
 } from "@/lib/userData";
 import { AuthUser, CloudAppState } from "@/lib/types";
 import { useAppStore } from "@/store/useAppStore";
@@ -30,7 +31,7 @@ interface AuthContextValue {
   supabaseAnonKey: string;
   signInWithGoogle: () => Promise<string | null>;
   signOut: () => Promise<void>;
-  saveCloudState: () => Promise<void>;
+  saveCloudState: (options?: SaveUserDataOptions) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -46,6 +47,8 @@ function pickCloudState(): CloudAppState {
     dailyRecords: s.dailyRecords,
     currentBlock: s.currentBlock,
     sessionPhase: s.sessionPhase,
+    remainingSeconds: s.remainingSeconds,
+    isRunning: s.isRunning,
   };
 }
 
@@ -65,6 +68,7 @@ export function AuthProvider({
   const [dataReady, setDataReady] = useState(false);
   const configError = validateSupabaseConfig(supabaseUrl, supabaseAnonKey);
   const hydrated = useRef(false);
+  const loadingRef = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const supabase = useMemo(
@@ -85,20 +89,27 @@ export function AuthProvider({
       dailyRecords: state.dailyRecords,
       currentBlock: state.currentBlock,
       sessionPhase: state.sessionPhase,
-      remainingSeconds: state.currentBlock
-        ? state.currentBlock.durationMinutes * 60
-        : 0,
-      isRunning: false,
+      remainingSeconds:
+        state.remainingSeconds ??
+        (state.currentBlock
+          ? state.currentBlock.durationMinutes * 60
+          : 0),
+      isRunning: state.isRunning ?? false,
     });
   }, []);
 
   const loadAndHydrate = useCallback(
     async (uid: string) => {
-      if (!supabase) return;
-      const cloud = await loadUserData(supabase, uid);
-      hydrateStore(cloud ?? defaultCloudState());
-      hydrated.current = true;
-      setDataReady(true);
+      if (!supabase || loadingRef.current) return;
+      loadingRef.current = true;
+      try {
+        const cloud = await loadUserData(supabase, uid);
+        hydrateStore(cloud ?? defaultCloudState());
+        hydrated.current = true;
+        setDataReady(true);
+      } finally {
+        loadingRef.current = false;
+      }
     },
     [supabase, hydrateStore]
   );
@@ -110,10 +121,13 @@ export function AuthProvider({
     }
   }, []);
 
-  const saveCloudState = useCallback(async () => {
-    if (!supabase || !user) return;
-    await saveUserData(supabase, user.uid, pickCloudState());
-  }, [supabase, user]);
+  const saveCloudState = useCallback(
+    async (options?: SaveUserDataOptions) => {
+      if (!supabase || !user) return;
+      await saveUserData(supabase, user.uid, pickCloudState(), options);
+    },
+    [supabase, user]
+  );
 
   useEffect(() => {
     if (!supabase) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildRoadmap } from "@/lib/roadmapGenerator";
+import { requireUser, unauthorized } from "@/lib/supabase/api-auth";
 import { DailyPlan, ScheduleBlock, SessionPhase, UserProfile } from "@/lib/types";
 
 interface RoadmapRequest {
@@ -82,6 +83,7 @@ status=upcoming のみ返す。idはそのまま。`;
 }
 
 export async function POST(request: NextRequest) {
+  if (!(await requireUser())) return unauthorized();
   try {
     const body = (await request.json()) as RoadmapRequest;
     const base = buildRoadmap(body.profile, body.plan, {

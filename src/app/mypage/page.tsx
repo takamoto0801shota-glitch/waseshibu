@@ -15,7 +15,7 @@ import { useAppStore } from "@/store/useAppStore";
 
 export default function MyPage() {
   const router = useRouter();
-  const { user, signOut } = useAuth();
+  const { user, signOut, saveCloudState } = useAuth();
   const profile = useAppStore((s) => s.profile);
   const dailyRecords = useAppStore((s) => s.dailyRecords);
   const setMode = useAppStore((s) => s.setMode);
@@ -32,6 +32,7 @@ export default function MyPage() {
     profile.desires
   );
   const [editingDesires, setEditingDesires] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const daysLeft = getDaysUntilTest(profile.testDate);
   const totalUnlocked = dailyRecords.reduce(
@@ -40,11 +41,22 @@ export default function MyPage() {
   );
   const totalStudy = dailyRecords.reduce((s, r) => s + r.studyMinutes, 0);
 
-  const handleReset = () => {
-    useAppStore.setState((s) => ({
-      profile: { ...s.profile, onboardingComplete: false },
-    }));
-    router.push("/onboarding");
+  const handleReset = async () => {
+    setResetting(true);
+    try {
+      useAppStore.setState((s) => ({
+        profile: { ...s.profile, onboardingComplete: false },
+        plan: null,
+        currentBlock: null,
+        sessionPhase: null,
+        remainingSeconds: 0,
+        isRunning: false,
+      }));
+      await saveCloudState({ allowOnboardingReset: true });
+      router.push("/onboarding");
+    } finally {
+      setResetting(false);
+    }
   };
 
   const startEdit = () => {
@@ -81,7 +93,7 @@ export default function MyPage() {
               />
             ) : (
               <div className="w-10 h-10 rounded-full bg-border flex items-center justify-center text-sm font-bold">
-                {user.displayName.charAt(0)}
+                {(user.displayName || "U").charAt(0)}
               </div>
             )}
             <div className="flex-1 min-w-0">
@@ -249,9 +261,10 @@ export default function MyPage() {
 
         <button
           onClick={handleReset}
-          className="sketch-btn w-full py-3 text-sm mb-3"
+          disabled={resetting}
+          className="sketch-btn w-full py-3 text-sm mb-3 disabled:opacity-50"
         >
-          初回設定をやり直す
+          {resetting ? "リセット中..." : "初回設定をやり直す"}
         </button>
 
         <button

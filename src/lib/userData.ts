@@ -39,6 +39,8 @@ export function defaultCloudState(): CloudAppState {
     dailyRecords: [],
     currentBlock: null,
     sessionPhase: null,
+    remainingSeconds: 0,
+    isRunning: false,
   };
 }
 
@@ -75,7 +77,14 @@ export function normalizeCloudState(raw: CloudAppState): CloudAppState {
     dailyRecords: raw.dailyRecords ?? [],
     currentBlock: raw.currentBlock ?? null,
     sessionPhase: raw.sessionPhase ?? null,
+    remainingSeconds: raw.remainingSeconds ?? 0,
+    isRunning: raw.isRunning ?? false,
   };
+}
+
+export interface SaveUserDataOptions {
+  /** マイページ「初回設定をやり直す」用 */
+  allowOnboardingReset?: boolean;
 }
 
 export async function ensureUserRow(
@@ -126,7 +135,8 @@ export async function loadUserData(
 export async function saveUserData(
   supabase: SupabaseClient,
   uid: string,
-  state: CloudAppState
+  state: CloudAppState,
+  options?: SaveUserDataOptions
 ): Promise<void> {
   const { data: existing } = await supabase
     .from("user_data")
@@ -134,10 +144,10 @@ export async function saveUserData(
     .eq("uid", uid)
     .maybeSingle();
 
-  let toSave = state;
+  let toSave = normalizeCloudState(state);
   const prev = existing?.app_state as CloudAppState | undefined;
-  // 一時的なリセットで完了済み設定が上書きされるのを防ぐ
   if (
+    !options?.allowOnboardingReset &&
     prev?.profile?.onboardingComplete &&
     !state.profile.onboardingComplete
   ) {
@@ -147,8 +157,10 @@ export async function saveUserData(
     });
   }
 
-  await supabase
+  const { error } = await supabase
     .from("user_data")
     .update({ app_state: toSave, updated_at: new Date().toISOString() })
     .eq("uid", uid);
+
+  if (error) throw new Error(error.message);
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { filterSubjects } from "@/lib/exclusions";
+import { requireUser, unauthorized } from "@/lib/supabase/api-auth";
 import { createDailyPlan } from "@/lib/planGenerator";
 import { rhythmHint, getBaselineRhythm } from "@/lib/rhythmCoach";
 import { UserProfile } from "@/lib/types";
@@ -11,6 +12,7 @@ interface PlanRequest {
 }
 
 export async function POST(request: NextRequest) {
+  if (!(await requireUser())) return unauthorized();
   try {
     const body = (await request.json()) as PlanRequest;
     const profile = {

@@ -1,3 +1,4 @@
+import { todayStrJST } from "./dateUtils";
 import { getBaselineRhythm, normalizeMode } from "./rhythmCoach";
 import { DailyPlan, ScheduleBlock, UserProfile } from "./types";
 
@@ -21,12 +22,11 @@ export function createDailyPlan(
 
 export function getDaysUntilTest(testDate: string): number | null {
   if (!testDate) return null;
-  const test = new Date(testDate);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  test.setHours(0, 0, 0, 0);
-  const diff = Math.ceil((test.getTime() - today.getTime()) / 86400000);
-  return diff > 0 ? diff : null;
+  const today = todayStrJST();
+  const todayMs = new Date(`${today}T12:00:00+09:00`).getTime();
+  const testMs = new Date(`${testDate}T12:00:00+09:00`).getTime();
+  const diff = Math.round((testMs - todayMs) / 86400000);
+  return diff >= 0 ? diff : null;
 }
 
 /** 勉強＋自由時間の合計消化 */

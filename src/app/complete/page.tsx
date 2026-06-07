@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getDaysUntilTest, getTotalDoneMinutes } from "@/lib/planGenerator";
 import { MODE_LABELS } from "@/lib/types";
@@ -13,10 +14,22 @@ export default function CompletePage() {
 
   const daysLeft = getDaysUntilTest(profile.testDate);
 
+  useEffect(() => {
+    if (!plan) router.replace("/");
+  }, [plan, router]);
+
   const handleHome = () => {
     resetSession();
     router.push("/");
   };
+
+  if (!plan) {
+    return (
+      <div className="min-h-dvh bg-bg flex items-center justify-center">
+        <p className="text-sm text-muted">読み込み中...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-dvh bg-bg px-5 pt-12 pb-8">

@@ -161,4 +161,6 @@ export interface CloudAppState {
   dailyRecords: DailyRecord[];
   currentBlock: ScheduleBlock | null;
   sessionPhase: SessionPhase | null;
+  remainingSeconds?: number;
+  isRunning?: boolean;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
@@ -24,6 +24,7 @@ function CallbackHandler() {
   const searchParams = useSearchParams();
   const { supabaseUrl, supabaseAnonKey, configError } = useAuth();
   const [done, setDone] = useState(false);
+  const exchanging = useRef(false);
 
   const supabase = useMemo(
     () =>
@@ -32,9 +33,17 @@ function CallbackHandler() {
   );
 
   useEffect(() => {
-    if (done || !supabase) return;
+    if (configError) {
+      router.replace("/login?error=config");
+    }
+  }, [configError, router]);
+
+  useEffect(() => {
+    if (done || exchanging.current || !supabase) return;
 
     const run = async () => {
+      exchanging.current = true;
+
       const oauthError =
         searchParams.get("error_description") ?? searchParams.get("error");
       if (oauthError) {

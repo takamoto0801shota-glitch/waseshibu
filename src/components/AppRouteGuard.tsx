@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
-import { isMainAppPath, isOnboardingDone } from "@/lib/onboardingGate";
+import {
+  isMainAppPath,
+  isOnboardingDone,
+  isSetupLockedForUser,
+} from "@/lib/onboardingGate";
 import { useAppStore } from "@/store/useAppStore";
 
 const PUBLIC_PATHS = ["/login", "/auth/callback"];
@@ -14,8 +18,8 @@ function isPublicPath(pathname: string): boolean {
 }
 
 /**
- * 認証・初期設定の遷移を一箇所で制御する。
- * 各ページ個別の replace より先に dataReady を待ち、完了済みユーザーの誤リダイレクトを防ぐ。
+ * 初期設定完了ユーザーは永久にメイン画面のみ許可。
+ * オンボーディングへ戻すのはマイページ「やり直す」（?force=1）のみ。
  */
 export function AppRouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -23,41 +27,38 @@ export function AppRouteGuard({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams();
   const { user, loading, dataReady } = useAuth();
   const profile = useAppStore((s) => s.profile);
-  const lastDoneRef = useRef(false);
+  const setupLockedAt = useAppStore((s) => s.setupLockedAt);
 
-  const onboardingDone = user
-    ? isOnboardingDone(profile, user.uid)
-    : false;
-
-  if (onboardingDone) {
-    lastDoneRef.current = true;
-  }
+  const uid = user?.uid;
+  const permanentlyLocked = uid ? isSetupLockedForUser(uid) : false;
+  const onboardingDone =
+    permanentlyLocked ||
+    (uid
+      ? isOnboardingDone(profile, uid, setupLockedAt)
+      : false);
 
   useEffect(() => {
     if (loading || !dataReady) return;
     if (isPublicPath(pathname)) return;
-
     if (!user) return;
 
-    const forceOnboarding = searchParams.get("force") === "1";
+    const forceReset = searchParams.get("force") === "1";
     const onOnboarding = pathname.startsWith(ONBOARDING_PATH);
     const onLegacyHome = pathname === "/home";
-
-    // 完了済みなのに一瞬 false になった場合はリダイレクトしない（ちらつき防止）
-    const effectivelyDone = onboardingDone || lastDoneRef.current;
 
     if (onLegacyHome) {
       router.replace("/");
       return;
     }
 
-    if (!effectivelyDone && !onOnboarding && isMainAppPath(pathname)) {
-      router.replace(ONBOARDING_PATH);
+    // ロック済み・完了済み → 初期設定画面へは絶対に戻さない（明示リセット時のみ）
+    if (onboardingDone && onOnboarding && !forceReset) {
+      router.replace("/");
       return;
     }
 
-    if (effectivelyDone && onOnboarding && !forceOnboarding) {
-      router.replace("/");
+    if (!onboardingDone && !onOnboarding && isMainAppPath(pathname)) {
+      router.replace(ONBOARDING_PATH);
     }
   }, [
     loading,

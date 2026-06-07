@@ -153,6 +153,8 @@ export interface AuthUser {
 
 /** クラウド保存用アプリ状態 */
 export interface CloudAppState {
+  /** 初期設定完了の永久ロック（ISO日時。明示リセット時のみ削除） */
+  setupLockedAt?: string | null;
   profile: UserProfile;
   todayMinutes: number;
   todayRewardDesires: UserDesire[];

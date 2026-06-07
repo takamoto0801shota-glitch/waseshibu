@@ -8,7 +8,7 @@ import { SubjectSelector } from "@/components/SubjectSelector";
 import { buildAllSubjects, needsCourseTrack } from "@/lib/subjectCatalog";
 import { CourseTrack, SubjectConfig, UserDesire } from "@/lib/types";
 import { useAuth } from "@/components/AuthProvider";
-import { markOnboardingCached } from "@/lib/onboardingGate";
+import { lockSetupPermanently } from "@/lib/onboardingGate";
 import { useAppStore } from "@/store/useAppStore";
 
 export default function OnboardingPage() {
@@ -43,7 +43,7 @@ export default function OnboardingPage() {
         testDate: "",
       });
       await saveCloudState();
-      if (user) markOnboardingCached(user.uid);
+      if (user) lockSetupPermanently(user.uid);
       router.replace("/");
     } catch {
       setSaveError("保存に失敗しました。もう一度お試しください。");

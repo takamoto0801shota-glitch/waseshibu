@@ -36,6 +36,7 @@ import {
 } from "@/lib/types";
 
 interface AppState {
+  setupLockedAt: string | null;
   profile: UserProfile;
   todayMinutes: number;
   todayRewardDesires: UserDesire[];
@@ -94,6 +95,7 @@ function startBlock(block: ScheduleBlock, autoRun: boolean) {
 }
 
 const initialState = {
+  setupLockedAt: null as string | null,
   profile: defaultProfile(),
   todayMinutes: 150,
   todayRewardDesires: [] as UserDesire[],
@@ -111,6 +113,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
       completeOnboarding: (data) => {
         const subjects = sanitizeSubjects(data.subjects);
         set({
+          setupLockedAt: new Date().toISOString(),
           profile: {
             grade: data.grade,
             courseTrack: data.courseTrack,
@@ -432,7 +435,8 @@ export const useAppStore = create<AppState>()((set, get) => ({
           isRunning: false,
         }),
 
-      resetAll: () => set({ ...initialState, profile: defaultProfile() }),
+      resetAll: () =>
+        set({ ...initialState, setupLockedAt: null, profile: defaultProfile() }),
 
       setSubjects: (subjects) =>
         set((s) => {

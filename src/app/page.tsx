@@ -18,6 +18,7 @@ export default function HomePage() {
   const router = useRouter();
   const { user, loading: authLoading, dataReady } = useAuth();
   const profile = useAppStore((s) => s.profile);
+  const setupLockedAt = useAppStore((s) => s.setupLockedAt);
   const todayMinutes = useAppStore((s) => s.todayMinutes);
   const todayRewardDesires = useAppStore((s) => s.todayRewardDesires);
   const todaySubjectIds = useAppStore((s) => s.todaySubjectIds);
@@ -37,7 +38,7 @@ export default function HomePage() {
     !authLoading &&
     dataReady &&
     !!user &&
-    isOnboardingDone(profile, user.uid);
+    isOnboardingDone(profile, user.uid, setupLockedAt);
 
   useEffect(() => {
     setHoursText(String(todayMinutes / 60));

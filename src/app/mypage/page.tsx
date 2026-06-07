@@ -11,13 +11,14 @@ import { getDaysUntilTest } from "@/lib/planGenerator";
 import { MODE_HINTS } from "@/lib/types";
 import { CourseTrack, SubjectConfig, UserDesire } from "@/lib/types";
 import { useAuth } from "@/components/AuthProvider";
-import { clearOnboardingCache } from "@/lib/onboardingGate";
+import { clearSetupLock } from "@/lib/onboardingGate";
 import { defaultProfile } from "@/lib/userData";
 import { useAppStore } from "@/store/useAppStore";
 
 export default function MyPage() {
   const router = useRouter();
   const { user, signOut, saveCloudState } = useAuth();
+  const uid = user?.uid;
   const profile = useAppStore((s) => s.profile);
   const dailyRecords = useAppStore((s) => s.dailyRecords);
   const setMode = useAppStore((s) => s.setMode);
@@ -46,8 +47,9 @@ export default function MyPage() {
   const handleReset = async () => {
     setResetting(true);
     try {
-      clearOnboardingCache();
+      if (uid) clearSetupLock(uid);
       useAppStore.setState({
+        setupLockedAt: null,
         profile: { ...defaultProfile(), desires: profile.desires },
         plan: null,
         currentBlock: null,

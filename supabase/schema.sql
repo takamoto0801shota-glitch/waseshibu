@@ -6,7 +6,7 @@ create table if not exists public.user_data (
   email text not null default '',
   display_name text not null default '',
   photo_url text,
-  app_state jsonb not null default '{}'::jsonb,
+  app_state jsonb not null default '{}'::jsonb, -- setupLockedAt: 初期設定永久ロック（明示リセット時のみ削除）
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

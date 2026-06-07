@@ -1,9 +1,13 @@
 import { SupabaseClient, User } from "@supabase/supabase-js";
 import { DESIRE_PRESETS } from "@/lib/desires";
 import { filterSubjects } from "@/lib/exclusions";
+import {
+  inferOnboardingComplete,
+  isCloudSetupLocked,
+  mergeLockedProfile,
+} from "@/lib/onboardingGate";
 import { normalizeMode } from "@/lib/rhythmCoach";
 import { sanitizeSubjects } from "@/lib/subjectUtils";
-import { inferOnboardingComplete } from "@/lib/onboardingGate";
 import {
   AuthUser,
   CloudAppState,
@@ -32,6 +36,7 @@ export function defaultProfile(): UserProfile {
 
 export function defaultCloudState(): CloudAppState {
   return {
+    setupLockedAt: null,
     profile: defaultProfile(),
     todayMinutes: 150,
     todayRewardDesires: [],
@@ -56,13 +61,29 @@ export function authUserFromSupabase(user: User): AuthUser {
   };
 }
 
+/** 初期設定完了を永久ロック状態に正規化 */
+export function enforceSetupLock(state: CloudAppState): CloudAppState {
+  const normalized = normalizeCloudState(state);
+  if (!isCloudSetupLocked(normalized)) return normalized;
+
+  return {
+    ...normalized,
+    setupLockedAt: normalized.setupLockedAt ?? new Date().toISOString(),
+    profile: { ...normalized.profile, onboardingComplete: true },
+  };
+}
+
 export function normalizeCloudState(raw: CloudAppState): CloudAppState {
   const profile = { ...defaultProfile(), ...raw.profile };
   profile.mode = normalizeMode(profile.mode);
   if (!profile.courseTrack) profile.courseTrack = "arts";
   if (!profile.desires?.length) profile.desires = defaultDesires();
   profile.subjects = filterSubjects(sanitizeSubjects(profile.subjects ?? []));
-  profile.onboardingComplete = inferOnboardingComplete(profile);
+  if (raw.setupLockedAt || inferOnboardingComplete(profile)) {
+    profile.onboardingComplete = true;
+  } else {
+    profile.onboardingComplete = inferOnboardingComplete(profile);
+  }
   const validIds = new Set(profile.subjects.map((s) => s.id));
   const todaySubjectIds = (raw.todaySubjectIds ?? []).filter((id) =>
     validIds.has(id)
@@ -71,6 +92,7 @@ export function normalizeCloudState(raw: CloudAppState): CloudAppState {
   if (plan && "blocks" in (plan as object)) plan = null;
 
   return {
+    setupLockedAt: raw.setupLockedAt ?? null,
     profile,
     todayMinutes: raw.todayMinutes ?? 150,
     todayRewardDesires: raw.todayRewardDesires ?? [],
@@ -85,7 +107,7 @@ export function normalizeCloudState(raw: CloudAppState): CloudAppState {
 }
 
 export interface SaveUserDataOptions {
-  /** マイページ「初回設定をやり直す」用 */
+  /** マイページ「初回設定をやり直す」時のみ true */
   allowOnboardingReset?: boolean;
 }
 
@@ -128,10 +150,10 @@ export async function loadUserData(
     .from("user_data")
     .select("app_state")
     .eq("uid", uid)
-    .single();
+    .maybeSingle();
 
   if (error || !data?.app_state) return null;
-  return normalizeCloudState(data.app_state as CloudAppState);
+  return enforceSetupLock(data.app_state as CloudAppState);
 }
 
 export async function saveUserData(
@@ -146,17 +168,28 @@ export async function saveUserData(
     .eq("uid", uid)
     .maybeSingle();
 
-  let toSave = normalizeCloudState(state);
   const prev = existing?.app_state as CloudAppState | undefined;
-  if (
-    !options?.allowOnboardingReset &&
-    prev?.profile?.onboardingComplete &&
-    !state.profile.onboardingComplete
-  ) {
-    toSave = normalizeCloudState({
-      ...state,
-      profile: { ...prev.profile, ...state.profile, onboardingComplete: true },
+  const prevLocked =
+    !!prev?.setupLockedAt ||
+    !!prev?.profile?.onboardingComplete ||
+    inferOnboardingComplete(prev?.profile ?? defaultProfile());
+
+  let toSave = enforceSetupLock(normalizeCloudState(state));
+
+  if (!options?.allowOnboardingReset && prevLocked) {
+    toSave = enforceSetupLock({
+      ...toSave,
+      setupLockedAt: prev?.setupLockedAt ?? toSave.setupLockedAt,
+      profile: mergeLockedProfile(prev?.profile, toSave.profile),
     });
+  }
+
+  if (options?.allowOnboardingReset) {
+    toSave = {
+      ...toSave,
+      setupLockedAt: null,
+      profile: { ...toSave.profile, onboardingComplete: false },
+    };
   }
 
   const { error } = await supabase

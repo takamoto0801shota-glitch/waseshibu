@@ -13,13 +13,17 @@ import { createClient } from "@/lib/supabase/client";
 import { validateSupabaseConfig } from "@/lib/supabase/env";
 import {
   clearOnboardingCache,
-  isOnboardingCached,
-  isOnboardingDone,
-  markOnboardingCached,
+  clearSetupLock,
+  isCloudSetupLocked,
+  isSetupLockedForUser,
+  loadLocalStateBackup,
+  lockSetupPermanently,
+  saveLocalStateBackup,
 } from "@/lib/onboardingGate";
 import {
   authUserFromSupabase,
   defaultCloudState,
+  enforceSetupLock,
   ensureUserRow,
   loadUserData,
   saveUserData,
@@ -45,6 +49,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 function pickCloudState(): CloudAppState {
   const s = useAppStore.getState();
   return {
+    setupLockedAt: s.setupLockedAt,
     profile: s.profile,
     todayMinutes: s.todayMinutes,
     todayRewardDesires: s.todayRewardDesires,
@@ -86,23 +91,39 @@ export function AuthProvider({
   );
 
   const hydrateStore = useCallback((state: CloudAppState) => {
+    const locked = enforceSetupLock(state);
     useAppStore.setState({
-      profile: state.profile,
-      todayMinutes: state.todayMinutes,
-      todayRewardDesires: state.todayRewardDesires,
-      todaySubjectIds: state.todaySubjectIds,
-      plan: state.plan,
-      dailyRecords: state.dailyRecords,
-      currentBlock: state.currentBlock,
-      sessionPhase: state.sessionPhase,
+      setupLockedAt: locked.setupLockedAt ?? null,
+      profile: locked.profile,
+      todayMinutes: locked.todayMinutes,
+      todayRewardDesires: locked.todayRewardDesires,
+      todaySubjectIds: locked.todaySubjectIds,
+      plan: locked.plan,
+      dailyRecords: locked.dailyRecords,
+      currentBlock: locked.currentBlock,
+      sessionPhase: locked.sessionPhase,
       remainingSeconds:
-        state.remainingSeconds ??
-        (state.currentBlock
-          ? state.currentBlock.durationMinutes * 60
+        locked.remainingSeconds ??
+        (locked.currentBlock
+          ? locked.currentBlock.durationMinutes * 60
           : 0),
-      isRunning: state.isRunning ?? false,
+      isRunning: locked.isRunning ?? false,
     });
   }, []);
+
+  const persistState = useCallback(
+    async (uid: string, state: CloudAppState, repairCloud = false) => {
+      const locked = enforceSetupLock(state);
+      saveLocalStateBackup(uid, locked);
+      if (isCloudSetupLocked(locked)) {
+        lockSetupPermanently(uid);
+      }
+      if (repairCloud && supabase && isCloudSetupLocked(locked)) {
+        await saveUserData(supabase, uid, locked).catch(() => {});
+      }
+    },
+    [supabase]
+  );
 
   const loadAndHydrate = useCallback(
     async (uid: string) => {
@@ -111,18 +132,27 @@ export function AuthProvider({
       setDataReady(false);
       try {
         let cloud = await loadUserData(supabase, uid);
-        if (!cloud && isOnboardingCached(uid)) {
+
+        if (!cloud) {
+          cloud = loadLocalStateBackup(uid);
+        }
+        if (!cloud) {
           await new Promise((r) => setTimeout(r, 400));
           cloud = await loadUserData(supabase, uid);
         }
+        if (!cloud) {
+          cloud = loadLocalStateBackup(uid);
+        }
 
         if (cloud) {
-          hydrateStore(cloud);
-          if (isOnboardingDone(cloud.profile, uid)) {
-            markOnboardingCached(uid);
+          const locked = enforceSetupLock(cloud);
+          hydrateStore(locked);
+          await persistState(uid, locked, true);
+        } else if (isSetupLockedForUser(uid)) {
+          const backup = loadLocalStateBackup(uid);
+          if (backup) {
+            hydrateStore(backup);
           }
-        } else if (isOnboardingCached(uid)) {
-          // 読み込み失敗時も完了済みキャッシュがあればストアを上書きしない
         } else {
           hydrateStore(defaultCloudState());
         }
@@ -133,7 +163,7 @@ export function AuthProvider({
         loadingRef.current = false;
       }
     },
-    [supabase, hydrateStore]
+    [supabase, hydrateStore, persistState]
   );
 
   const clearSaveTimer = useCallback(() => {
@@ -146,9 +176,13 @@ export function AuthProvider({
   const saveCloudState = useCallback(
     async (options?: SaveUserDataOptions) => {
       if (!supabase || !user) return;
-      await saveUserData(supabase, user.uid, pickCloudState(), options);
+      const state = enforceSetupLock(pickCloudState());
+      await saveUserData(supabase, user.uid, state, options);
+      if (!options?.allowOnboardingReset) {
+        await persistState(user.uid, state);
+      }
     },
-    [supabase, user]
+    [supabase, user, persistState]
   );
 
   useEffect(() => {
@@ -230,7 +264,9 @@ export function AuthProvider({
       if (!hydrated.current) return;
       clearSaveTimer();
       saveTimer.current = setTimeout(() => {
-        saveUserData(supabase, user.uid, pickCloudState()).catch(() => {});
+        const state = enforceSetupLock(pickCloudState());
+        saveUserData(supabase, user.uid, state).catch(() => {});
+        void persistState(user.uid, state);
       }, 800);
     });
 
@@ -238,7 +274,7 @@ export function AuthProvider({
       unsub();
       clearSaveTimer();
     };
-  }, [user, supabase, clearSaveTimer]);
+  }, [user, supabase, clearSaveTimer, persistState]);
 
   const signInWithGoogle = async (): Promise<string | null> => {
     if (!supabase) return configError ?? "Supabase が未設定です";
@@ -258,12 +294,14 @@ export function AuthProvider({
   const signOut = async () => {
     if (!supabase) return;
     clearSaveTimer();
-    clearOnboardingCache();
+    const uid = user?.uid;
     if (user) {
       await saveUserData(supabase, user.uid, pickCloudState()).catch(
         () => {}
       );
     }
+    if (uid) clearSetupLock(uid);
+    clearOnboardingCache();
     hydrated.current = false;
     setDataReady(false);
     await supabase.auth.signOut();

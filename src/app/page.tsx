@@ -10,7 +10,7 @@ import {
   formatTodaySubjectsSummary,
 } from "@/components/TodaySubjectSheet";
 import { useAuth } from "@/components/AuthProvider";
-import { isOnboardingDone } from "@/lib/onboardingGate";
+import { hasSetupInfo } from "@/lib/onboardingGate";
 import { UserDesire } from "@/lib/types";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -18,7 +18,6 @@ export default function HomePage() {
   const router = useRouter();
   const { user, loading: authLoading, dataReady } = useAuth();
   const profile = useAppStore((s) => s.profile);
-  const setupLockedAt = useAppStore((s) => s.setupLockedAt);
   const todayMinutes = useAppStore((s) => s.todayMinutes);
   const todayRewardDesires = useAppStore((s) => s.todayRewardDesires);
   const todaySubjectIds = useAppStore((s) => s.todaySubjectIds);
@@ -34,11 +33,15 @@ export default function HomePage() {
   const [subjectSheetOpen, setSubjectSheetOpen] = useState(false);
 
   const subjects = profile.subjects;
-  const ready =
-    !authLoading &&
-    dataReady &&
-    !!user &&
-    isOnboardingDone(profile, user.uid, setupLockedAt);
+  const setupReady = hasSetupInfo(profile);
+  const appReady = !authLoading && dataReady && !!user;
+
+  useEffect(() => {
+    if (!appReady) return;
+    if (!setupReady) {
+      router.replace("/onboarding");
+    }
+  }, [appReady, setupReady, router]);
 
   useEffect(() => {
     setHoursText(String(todayMinutes / 60));
@@ -76,7 +79,7 @@ export default function HomePage() {
     todaySubjectIds
   );
 
-  if (!ready) {
+  if (!appReady || !setupReady) {
     return (
       <div className="min-h-dvh bg-bg flex items-center justify-center">
         <p className="text-sm text-muted">読み込み中...</p>

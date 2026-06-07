@@ -3,11 +3,7 @@
 import { useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
-import {
-  isMainAppPath,
-  isOnboardingDone,
-  isSetupLockedForUser,
-} from "@/lib/onboardingGate";
+import { hasSetupInfo } from "@/lib/onboardingGate";
 import { useAppStore } from "@/store/useAppStore";
 
 const PUBLIC_PATHS = ["/login", "/auth/callback"];
@@ -18,8 +14,9 @@ function isPublicPath(pathname: string): boolean {
 }
 
 /**
- * 初期設定完了ユーザーは永久にメイン画面のみ許可。
- * オンボーディングへ戻すのはマイページ「やり直す」（?force=1）のみ。
+ * ログイン後のスタートは常にホーム（/）。
+ * 初期設定への誘導はホーム画面がデータを確認して行う。
+ * ここでは「設定済みなのにオンボーディングへ入る」ケースのみ弾く。
  */
 export function AppRouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -27,15 +24,6 @@ export function AppRouteGuard({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams();
   const { user, loading, dataReady } = useAuth();
   const profile = useAppStore((s) => s.profile);
-  const setupLockedAt = useAppStore((s) => s.setupLockedAt);
-
-  const uid = user?.uid;
-  const permanentlyLocked = uid ? isSetupLockedForUser(uid) : false;
-  const onboardingDone =
-    permanentlyLocked ||
-    (uid
-      ? isOnboardingDone(profile, uid, setupLockedAt)
-      : false);
 
   useEffect(() => {
     if (loading || !dataReady) return;
@@ -44,31 +32,16 @@ export function AppRouteGuard({ children }: { children: React.ReactNode }) {
 
     const forceReset = searchParams.get("force") === "1";
     const onOnboarding = pathname.startsWith(ONBOARDING_PATH);
-    const onLegacyHome = pathname === "/home";
 
-    if (onLegacyHome) {
+    if (pathname === "/home") {
       router.replace("/");
       return;
     }
 
-    // ロック済み・完了済み → 初期設定画面へは絶対に戻さない（明示リセット時のみ）
-    if (onboardingDone && onOnboarding && !forceReset) {
+    if (onOnboarding && hasSetupInfo(profile) && !forceReset) {
       router.replace("/");
-      return;
     }
-
-    if (!onboardingDone && !onOnboarding && isMainAppPath(pathname)) {
-      router.replace(ONBOARDING_PATH);
-    }
-  }, [
-    loading,
-    dataReady,
-    user,
-    pathname,
-    onboardingDone,
-    router,
-    searchParams,
-  ]);
+  }, [loading, dataReady, user, pathname, profile, router, searchParams]);
 
   return <>{children}</>;
 }

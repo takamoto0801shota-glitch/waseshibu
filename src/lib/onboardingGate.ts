@@ -4,10 +4,15 @@ const SESSION_KEY = "atlas_onboarding_done_uid";
 const LOCK_PREFIX = "atlas_setup_locked_v1_";
 const BACKUP_PREFIX = "atlas_state_backup_v1_";
 
+/** ホーム画面で表示に必要な初期設定データがあるか（ルーティング判定用） */
+export function hasSetupInfo(profile: UserProfile): boolean {
+  return profile.grade !== "" && profile.subjects.length > 0;
+}
+
 /** プロフィールから初期設定完了を推論 */
 export function inferOnboardingComplete(profile: UserProfile): boolean {
   if (profile.onboardingComplete) return true;
-  return profile.grade !== "" && profile.subjects.length > 0;
+  return hasSetupInfo(profile);
 }
 
 /** クラウド状態から初期設定がロック済みか */

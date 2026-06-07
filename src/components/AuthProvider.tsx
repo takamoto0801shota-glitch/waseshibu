@@ -152,6 +152,8 @@ export function AuthProvider({
           const backup = loadLocalStateBackup(uid);
           if (backup) {
             hydrateStore(backup);
+          } else {
+            hydrateStore(defaultCloudState());
           }
         } else {
           hydrateStore(defaultCloudState());

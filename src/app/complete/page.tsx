@@ -15,12 +15,12 @@ export default function CompletePage() {
   const daysLeft = getDaysUntilTest(profile.testDate);
 
   useEffect(() => {
-    if (!plan) router.replace("/home");
+    if (!plan) router.replace("/");
   }, [plan, router]);
 
   const handleHome = () => {
     resetSession();
-    router.push("/home");
+    router.push("/");
   };
 
   if (!plan) {

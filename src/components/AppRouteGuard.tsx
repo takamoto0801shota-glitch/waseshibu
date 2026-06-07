@@ -41,13 +41,13 @@ export function AppRouteGuard({ children }: { children: React.ReactNode }) {
 
     const forceOnboarding = searchParams.get("force") === "1";
     const onOnboarding = pathname.startsWith(ONBOARDING_PATH);
-    const onRoot = pathname === "/";
+    const onLegacyHome = pathname === "/home";
 
     // 完了済みなのに一瞬 false になった場合はリダイレクトしない（ちらつき防止）
     const effectivelyDone = onboardingDone || lastDoneRef.current;
 
-    if (onRoot) {
-      router.replace(effectivelyDone ? "/home" : ONBOARDING_PATH);
+    if (onLegacyHome) {
+      router.replace("/");
       return;
     }
 
@@ -57,7 +57,7 @@ export function AppRouteGuard({ children }: { children: React.ReactNode }) {
     }
 
     if (effectivelyDone && onOnboarding && !forceOnboarding) {
-      router.replace("/home");
+      router.replace("/");
     }
   }, [
     loading,

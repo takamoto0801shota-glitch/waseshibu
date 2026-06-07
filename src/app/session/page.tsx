@@ -57,7 +57,7 @@ export default function SessionPage() {
   useTimer();
 
   useEffect(() => {
-    if (!plan) router.replace("/home");
+    if (!plan) router.replace("/");
   }, [plan, router]);
 
   useEffect(() => {

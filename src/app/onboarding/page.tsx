@@ -44,7 +44,7 @@ export default function OnboardingPage() {
       });
       await saveCloudState();
       if (user) markOnboardingCached(user.uid);
-      router.replace("/home");
+      router.replace("/");
     } catch {
       setSaveError("保存に失敗しました。もう一度お試しください。");
     } finally {

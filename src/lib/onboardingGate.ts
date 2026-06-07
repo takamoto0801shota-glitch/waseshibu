@@ -55,9 +55,9 @@ export function withStableProfile(
   return next;
 }
 
-/** ガード対象のメイン画面パス */
+/** ガード対象のメイン画面パス（ホームは `/`） */
 export const MAIN_APP_PATHS = [
-  "/home",
+  "/",
   "/mypage",
   "/menu",
   "/session",
@@ -65,7 +65,8 @@ export const MAIN_APP_PATHS = [
 ] as const;
 
 export function isMainAppPath(pathname: string): boolean {
-  return MAIN_APP_PATHS.some(
+  if (pathname === "/") return true;
+  return MAIN_APP_PATHS.filter((p) => p !== "/").some(
     (p) => pathname === p || pathname.startsWith(`${p}/`)
   );
 }

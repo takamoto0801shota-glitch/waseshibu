@@ -23,6 +23,7 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const { user, loading, configError, signInWithGoogle } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
 
   useEffect(() => {
     if (!loading && user) router.replace("/");
@@ -42,12 +43,18 @@ function LoginContent() {
     }
   }, [searchParams]);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (configError) {
       setError(configError);
       return;
     }
-    signInWithGoogle();
+    setError(null);
+    setSigningIn(true);
+    const err = await signInWithGoogle();
+    if (err) {
+      setError(err);
+      setSigningIn(false);
+    }
   };
 
   if (loading) {
@@ -74,11 +81,11 @@ function LoginContent() {
           </p>
           <button
             onClick={handleLogin}
-            disabled={!!configError}
+            disabled={!!configError || signingIn}
             className="sketch-btn sketch-btn-primary w-full py-4 text-base flex items-center justify-center gap-3 disabled:opacity-50"
           >
             <GoogleIcon />
-            Googleでログイン
+            {signingIn ? "Googleへ移動中..." : "Googleでログイン"}
           </button>
         </div>
 

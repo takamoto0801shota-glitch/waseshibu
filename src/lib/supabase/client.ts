@@ -1,5 +1,10 @@
 import { createBrowserClient } from "@supabase/ssr";
 
 export function createClient(url: string, anonKey: string) {
-  return createBrowserClient(url, anonKey);
+  return createBrowserClient(url, anonKey, {
+    auth: {
+      flowType: "pkce",
+      detectSessionInUrl: false,
+    },
+  });
 }

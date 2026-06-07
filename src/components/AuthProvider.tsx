@@ -24,7 +24,9 @@ interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   configError: string | null;
-  signInWithGoogle: () => void;
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+  signInWithGoogle: () => Promise<string | null>;
   signOut: () => Promise<void>;
   saveCloudState: () => Promise<void>;
 }
@@ -162,8 +164,19 @@ export function AuthProvider({
     };
   }, [user, supabase]);
 
-  const signInWithGoogle = () => {
-    window.location.href = "/api/auth/google";
+  const signInWithGoogle = async (): Promise<string | null> => {
+    if (!supabase) return configError ?? "Supabase が未設定です";
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        skipBrowserRedirect: true,
+      },
+    });
+    if (error) return error.message;
+    if (!data.url) return "Googleログイン URL の取得に失敗しました";
+    window.location.href = data.url;
+    return null;
   };
 
   const signOut = async () => {
@@ -185,6 +198,8 @@ export function AuthProvider({
         user,
         loading,
         configError,
+        supabaseUrl,
+        supabaseAnonKey,
         signInWithGoogle,
         signOut,
         saveCloudState,

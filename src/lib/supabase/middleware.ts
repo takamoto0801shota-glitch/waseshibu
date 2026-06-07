@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseConfig } from "./env";
 
-const PUBLIC_PATHS = ["/login", "/auth/callback", "/api/auth/google"];
+const PUBLIC_PATHS = ["/login", "/auth/callback"];
 
 export async function updateSession(request: NextRequest) {
   const { url, anonKey } = getSupabaseConfig();
@@ -31,6 +31,7 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
+  await supabase.auth.getSession();
   const {
     data: { user },
   } = await supabase.auth.getUser();

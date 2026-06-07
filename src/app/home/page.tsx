@@ -171,7 +171,7 @@ export default function HomePage() {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mb-6">
+        <div className="grid grid-cols-2 gap-3 mb-8">
           <div>
             <p className="text-xs font-bold text-muted mb-2">目標勉強時間</p>
             <div className="sketch-border bg-card p-5 text-center h-full flex flex-col justify-center">
@@ -188,7 +188,7 @@ export default function HomePage() {
                   }
                 }}
                 placeholder="1.5"
-                className="w-full text-center text-4xl font-bold bg-transparent outline-none border-b-2 border-border pb-2 mb-1"
+                className="w-full text-center text-4xl font-bold text-primary bg-transparent outline-none border-b-2 border-primary pb-2 mb-1"
               />
               <p className="text-xs text-muted">{todayMinutes}分</p>
             </div>
@@ -209,21 +209,25 @@ export default function HomePage() {
                   }
                 }}
                 placeholder="0.5"
-                className="w-full text-center text-4xl font-bold bg-transparent outline-none border-b-2 border-reward pb-2 mb-1 text-reward"
+                className="w-full text-center text-4xl font-bold text-primary bg-transparent outline-none border-b-2 border-primary pb-2 mb-1"
               />
               <p className="text-xs text-muted">{todayRewardMinutes}分</p>
             </div>
           </div>
         </div>
 
-        <p className="text-xs font-bold text-muted mb-3">今日やる科目</p>
         <button
           type="button"
           onClick={() => setSubjectSheetOpen(true)}
-          className="sketch-border bg-card w-full px-4 py-4 mb-6 text-left flex items-center justify-between"
+          className="sketch-border bg-card w-full mb-6 text-left overflow-hidden"
         >
-          <span className="text-sm font-semibold">{subjectSummary}</span>
-          <span className="text-xs text-muted">変更 ▾</span>
+          <div className="px-4 pt-3 pb-2 border-b border-border">
+            <span className="text-xs font-bold text-muted">今日やる科目</span>
+          </div>
+          <div className="px-4 py-4 flex items-center justify-between gap-3">
+            <span className="text-sm font-semibold">{subjectSummary}</span>
+            <span className="text-xs text-primary shrink-0">変更 ▾</span>
+          </div>
         </button>
 
         <p className="text-xs font-bold text-muted mb-3">やりたいこと</p>

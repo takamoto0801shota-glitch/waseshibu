@@ -25,14 +25,15 @@ import {
   authUserFromSupabase,
   defaultCloudState,
   enforceSetupLock,
-  ensureUserRow,
-  loadUserData,
-  saveUserData,
   shouldPersistToCloud,
-  verifySetupSaved,
   type SaveUserDataOptions,
-  type SaveUserMeta,
 } from "@/lib/userData";
+import {
+  ensureUserRowViaApi,
+  fetchUserDataFromApi,
+  saveUserDataViaApi,
+  verifyApiSaveResponse,
+} from "@/lib/userDataClient";
 import { AuthUser, CloudAppState } from "@/lib/types";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -49,14 +50,6 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-function userMeta(user: AuthUser): SaveUserMeta {
-  return {
-    email: user.email,
-    displayName: user.displayName,
-    photoURL: user.photoURL,
-  };
-}
 
 function pickCloudState(): CloudAppState {
   const s = useAppStore.getState();
@@ -123,28 +116,40 @@ export function AuthProvider({
     });
   }, []);
 
-  const persistState = useCallback(
-    async (uid: string, state: CloudAppState, repairCloud = false) => {
+  const persistLocal = useCallback((uid: string, state: CloudAppState) => {
+    const locked = enforceSetupLock(state);
+    saveLocalStateBackup(uid, locked);
+    if (isCloudSetupLocked(locked)) {
+      lockSetupPermanently(uid);
+    }
+  }, []);
+
+  const syncToCloud = useCallback(
+    async (state: CloudAppState, options?: SaveUserDataOptions) => {
       const locked = enforceSetupLock(state);
-      saveLocalStateBackup(uid, locked);
-      if (isCloudSetupLocked(locked)) {
-        lockSetupPermanently(uid);
+      const result = await saveUserDataViaApi(locked, options);
+      if (!options?.allowOnboardingReset) {
+        verifyApiSaveResponse(result, locked);
       }
-      if (repairCloud && supabase && shouldPersistToCloud(locked)) {
-        await saveUserData(supabase, uid, locked).catch(() => {});
-      }
+      return locked;
     },
-    [supabase]
+    []
   );
 
   const loadAndHydrate = useCallback(
     async (uid: string) => {
-      if (!supabase || loadingRef.current) return;
+      if (loadingRef.current) return;
       loadingRef.current = true;
       setDataReady(false);
       try {
         const backup = loadLocalStateBackup(uid);
-        let cloud = await loadUserData(supabase, uid);
+        let cloud: CloudAppState | null = null;
+
+        try {
+          cloud = await fetchUserDataFromApi();
+        } catch {
+          cloud = null;
+        }
 
         if (cloud && !hasSetupInfo(cloud.profile) && backup && hasSetupInfo(backup.profile)) {
           cloud = enforceSetupLock(backup);
@@ -153,22 +158,38 @@ export function AuthProvider({
         }
         if (!cloud || !hasSetupInfo(cloud.profile)) {
           await new Promise((r) => setTimeout(r, 400));
-          const retry = await loadUserData(supabase, uid);
-          if (retry && hasSetupInfo(retry.profile)) {
-            cloud = retry;
-          } else if (backup && hasSetupInfo(backup.profile)) {
-            cloud = enforceSetupLock(backup);
+          try {
+            const retry = await fetchUserDataFromApi();
+            if (retry && hasSetupInfo(retry.profile)) {
+              cloud = retry;
+            } else if (backup && hasSetupInfo(backup.profile)) {
+              cloud = enforceSetupLock(backup);
+            }
+          } catch {
+            if (backup && hasSetupInfo(backup.profile)) {
+              cloud = enforceSetupLock(backup);
+            }
           }
         }
 
         if (cloud) {
           const locked = enforceSetupLock(cloud);
           hydrateStore(locked);
-          await persistState(uid, locked, true);
+          persistLocal(uid, locked);
+          if (hasSetupInfo(locked.profile)) {
+            try {
+              const remote = await fetchUserDataFromApi();
+              if (!remote || !hasSetupInfo(remote.profile)) {
+                await syncToCloud(locked);
+              }
+            } catch {
+              await syncToCloud(locked).catch(() => {});
+            }
+          }
         } else if (isSetupLockedForUser(uid)) {
-          const backup = loadLocalStateBackup(uid);
-          if (backup) {
-            hydrateStore(backup);
+          const localBackup = loadLocalStateBackup(uid);
+          if (localBackup) {
+            hydrateStore(localBackup);
           } else {
             hydrateStore(defaultCloudState());
           }
@@ -182,7 +203,7 @@ export function AuthProvider({
         loadingRef.current = false;
       }
     },
-    [supabase, hydrateStore, persistState]
+    [hydrateStore, persistLocal, syncToCloud]
   );
 
   const clearSaveTimer = useCallback(() => {
@@ -194,27 +215,15 @@ export function AuthProvider({
 
   const saveCloudState = useCallback(
     async (options?: SaveUserDataOptions) => {
-      if (!supabase || !user) return;
+      if (!user) return;
       clearSaveTimer();
       const state = enforceSetupLock(pickCloudState());
-      await saveUserData(
-        supabase,
-        user.uid,
-        state,
-        options,
-        userMeta(user)
-      );
+      await syncToCloud(state, options);
       if (!options?.allowOnboardingReset) {
-        await persistState(user.uid, state);
-        if (hasSetupInfo(state.profile)) {
-          const ok = await verifySetupSaved(supabase, user.uid);
-          if (!ok) {
-            throw new Error("学年・科目の保存を確認できませんでした");
-          }
-        }
+        persistLocal(user.uid, state);
       }
     },
-    [supabase, user, persistState, clearSaveTimer]
+    [user, persistLocal, clearSaveTimer, syncToCloud]
   );
 
   useEffect(() => {
@@ -244,10 +253,7 @@ export function AuthProvider({
 
         if (shouldLoad) {
           setDataReady(false);
-          await ensureUserRow(
-            supabase,
-            session.user as import("@supabase/supabase-js").User
-          );
+          await ensureUserRowViaApi().catch(() => {});
           await loadAndHydrate(authUser.uid);
         }
       } else if (event === "SIGNED_OUT") {
@@ -290,7 +296,7 @@ export function AuthProvider({
   }, [supabase, loadAndHydrate, clearSaveTimer]);
 
   useEffect(() => {
-    if (!user || !supabase) return;
+    if (!user) return;
 
     const unsub = useAppStore.subscribe(() => {
       if (!hydrated.current) return;
@@ -298,10 +304,8 @@ export function AuthProvider({
       saveTimer.current = setTimeout(() => {
         const state = enforceSetupLock(pickCloudState());
         if (!shouldPersistToCloud(state)) return;
-        saveUserData(supabase, user.uid, state, undefined, userMeta(user)).catch(
-          () => {}
-        );
-        void persistState(user.uid, state);
+        saveUserDataViaApi(state).catch(() => {});
+        persistLocal(user.uid, state);
       }, 800);
     });
 
@@ -309,7 +313,7 @@ export function AuthProvider({
       unsub();
       clearSaveTimer();
     };
-  }, [user, supabase, clearSaveTimer, persistState]);
+  }, [user, clearSaveTimer, persistLocal]);
 
   const signInWithGoogle = async (): Promise<string | null> => {
     if (!supabase) return configError ?? "Supabase が未設定です";
@@ -331,13 +335,7 @@ export function AuthProvider({
     clearSaveTimer();
     const uid = user?.uid;
     if (user) {
-      await saveUserData(
-        supabase,
-        user.uid,
-        pickCloudState(),
-        undefined,
-        userMeta(user)
-      ).catch(() => {});
+      await saveUserDataViaApi(pickCloudState()).catch(() => {});
     }
     if (uid) clearSetupLock(uid);
     clearOnboardingCache();

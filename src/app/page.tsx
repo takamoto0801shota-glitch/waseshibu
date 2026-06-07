@@ -10,7 +10,7 @@ import {
   formatTodaySubjectsSummary,
 } from "@/components/TodaySubjectSheet";
 import { useAuth } from "@/components/AuthProvider";
-import { hasSetupInfo } from "@/lib/onboardingGate";
+import { hasSetupInfo, loadLocalStateBackup } from "@/lib/onboardingGate";
 import { UserDesire } from "@/lib/types";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -33,15 +33,31 @@ export default function HomePage() {
   const [subjectSheetOpen, setSubjectSheetOpen] = useState(false);
 
   const subjects = profile.subjects;
-  const setupReady = hasSetupInfo(profile);
+  const backupProfile =
+    user && !hasSetupInfo(profile)
+      ? loadLocalStateBackup(user.uid)?.profile
+      : null;
+  const setupReady =
+    hasSetupInfo(profile) ||
+    (!!backupProfile && hasSetupInfo(backupProfile));
   const appReady = !authLoading && dataReady && !!user;
 
   useEffect(() => {
     if (!appReady) return;
-    if (!setupReady) {
-      router.replace("/onboarding");
+    if (hasSetupInfo(profile)) return;
+    const backup = user ? loadLocalStateBackup(user.uid) : null;
+    if (backup && hasSetupInfo(backup.profile)) {
+      useAppStore.setState({
+        setupLockedAt: backup.setupLockedAt ?? null,
+        profile: backup.profile,
+        todayMinutes: backup.todayMinutes,
+        todayRewardDesires: backup.todayRewardDesires,
+        todaySubjectIds: backup.todaySubjectIds,
+      });
+      return;
     }
-  }, [appReady, setupReady, router]);
+    router.replace("/onboarding");
+  }, [appReady, profile, user, router]);
 
   useEffect(() => {
     setHoursText(String(todayMinutes / 60));

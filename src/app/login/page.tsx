@@ -69,10 +69,7 @@ function LoginContent() {
   return (
     <div className="min-h-dvh bg-bg px-5 flex flex-col items-center justify-center">
       <div className="max-w-sm w-full text-center">
-        <h1 className="text-2xl font-bold mb-2">Atlas</h1>
-        <p className="text-sm text-muted mb-10">
-          欲望を主役にした、勉強の意思決定OS
-        </p>
+        <h1 className="text-2xl font-bold mb-10">Atlas</h1>
 
         <div className="sketch-border bg-card p-8 mb-6">
           <p className="text-sm mb-6">

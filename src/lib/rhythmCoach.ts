@@ -165,11 +165,9 @@ export function computeRewardMinutes(
 export function peekNextSubjectName(
   profile: UserProfile,
   plan: DailyPlan,
-  todaySubjectIds: string[],
-  pendingRewardMinutes = 0
+  todaySubjectIds: string[]
 ): string | null {
-  const remaining =
-    plan.targetStudyMinutes - plan.studyDoneMinutes - pendingRewardMinutes;
+  const remaining = plan.targetStudyMinutes - plan.studyDoneMinutes;
   if (remaining <= 0) return null;
 
   const activeIds = plan.todaySubjectIds ?? todaySubjectIds;

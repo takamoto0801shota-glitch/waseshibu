@@ -34,7 +34,11 @@ import {
   saveUserDataViaApi,
   verifyApiSaveResponse,
 } from "@/lib/userDataClient";
-import { AuthUser, CloudAppState } from "@/lib/types";
+import {
+  AuthUser,
+  CloudAppState,
+  DEFAULT_REWARD_MINUTES,
+} from "@/lib/types";
 import { useAppStore } from "@/store/useAppStore";
 
 interface AuthContextValue {
@@ -102,7 +106,8 @@ export function AuthProvider({
       setupLockedAt: locked.setupLockedAt ?? null,
       profile: locked.profile,
       todayMinutes: locked.todayMinutes,
-      todayRewardMinutes: locked.todayRewardMinutes ?? 30,
+      todayRewardMinutes:
+        locked.todayRewardMinutes ?? DEFAULT_REWARD_MINUTES,
       todayRewardDesires: locked.todayRewardDesires,
       todaySubjectIds: locked.todaySubjectIds,
       plan: locked.plan,

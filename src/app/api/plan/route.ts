@@ -3,8 +3,13 @@ import { filterSubjects } from "@/lib/exclusions";
 import { createDailyPlan } from "@/lib/planGenerator";
 import { rhythmHint } from "@/lib/rhythmCoach";
 import { requireUser, unauthorized } from "@/lib/supabase/api-auth";
-import { UserProfile } from "@/lib/types";
-import { MODE_HINTS, MODE_LABELS } from "@/lib/types";
+import {
+  DEFAULT_STUDY_MINUTES,
+  defaultRewardMinutesFromStudy,
+  MODE_HINTS,
+  MODE_LABELS,
+  UserProfile,
+} from "@/lib/types";
 
 interface PlanRequest {
   profile: UserProfile;
@@ -22,8 +27,10 @@ export async function POST(request: NextRequest) {
       ...body.profile,
       subjects: filterSubjects(body.profile.subjects),
     };
-    const studyMinutes = body.todayStudyMinutes ?? body.todayMinutes ?? 90;
-    const rewardMinutes = body.todayRewardMinutes ?? 30;
+    const studyMinutes =
+      body.todayStudyMinutes ?? body.todayMinutes ?? DEFAULT_STUDY_MINUTES;
+    const rewardMinutes =
+      body.todayRewardMinutes ?? defaultRewardMinutesFromStudy(studyMinutes);
     const plan = createDailyPlan(profile, studyMinutes, rewardMinutes);
 
     return NextResponse.json({

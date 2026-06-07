@@ -1,6 +1,11 @@
 import { todayStrJST } from "./dateUtils";
 import { normalizeMode, optimizeRhythmForBudget } from "./rhythmCoach";
-import { DailyPlan, ScheduleBlock, UserProfile } from "./types";
+import {
+  DailyPlan,
+  defaultRewardMinutesFromStudy,
+  ScheduleBlock,
+  UserProfile,
+} from "./types";
 
 export { normalizeMode } from "./rhythmCoach";
 
@@ -24,10 +29,10 @@ export function createDailyPlan(
 
 export function normalizeDailyPlan(plan: DailyPlan): DailyPlan {
   const mode = normalizeMode(plan.mode);
+  const targetStudyMinutes = plan.targetStudyMinutes ?? 120;
   const targetRewardMinutes =
     plan.targetRewardMinutes ??
-    Math.max(5, Math.round((plan.targetStudyMinutes ?? 120) / 3));
-  const targetStudyMinutes = plan.targetStudyMinutes ?? 120;
+    defaultRewardMinutesFromStudy(targetStudyMinutes);
   return {
     ...plan,
     mode,
@@ -70,19 +75,53 @@ export function getTargetTotalMinutes(plan: DailyPlan): number {
   return plan.targetStudyMinutes + plan.targetRewardMinutes;
 }
 
-/** 現在ブロックの経過を含むリアルタイム消化 */
+function liveBlockMinutes(
+  currentBlock: ScheduleBlock | null,
+  remainingSeconds: number
+): number {
+  if (!currentBlock) return 0;
+  return Math.max(
+    0,
+    (currentBlock.durationMinutes * 60 - remainingSeconds) / 60
+  );
+}
+
+/** 現在ブロックの経過を含む勉強時間のリアルタイム消化 */
+export function getLiveStudyMinutes(
+  plan: DailyPlan,
+  currentBlock: ScheduleBlock | null,
+  remainingSeconds: number
+): number {
+  let minutes = plan.studyDoneMinutes;
+  if (currentBlock?.type === "study") {
+    minutes += liveBlockMinutes(currentBlock, remainingSeconds);
+  }
+  return Math.min(plan.targetStudyMinutes, minutes);
+}
+
+/** 現在ブロックの経過を含む自由時間のリアルタイム消化 */
+export function getLiveRewardMinutes(
+  plan: DailyPlan,
+  currentBlock: ScheduleBlock | null,
+  remainingSeconds: number
+): number {
+  let minutes = plan.rewardDoneMinutes;
+  if (currentBlock?.type === "reward") {
+    minutes += liveBlockMinutes(currentBlock, remainingSeconds);
+  }
+  return Math.min(plan.targetRewardMinutes, minutes);
+}
+
+/** 勉強＋自由の合計消化（表示用） */
 export function getLiveTotalMinutes(
   plan: DailyPlan,
   currentBlock: ScheduleBlock | null,
   remainingSeconds: number
 ): number {
-  let minutes = getTotalDoneMinutes(plan);
-  if (currentBlock) {
-    const elapsed =
-      currentBlock.durationMinutes * 60 - remainingSeconds;
-    minutes += elapsed / 60;
-  }
-  return Math.min(getTargetTotalMinutes(plan), minutes);
+  return (
+    getLiveStudyMinutes(plan, currentBlock, remainingSeconds) +
+    getLiveRewardMinutes(plan, currentBlock, remainingSeconds)
+  );
 }
 
 export function isPlanComplete(plan: DailyPlan): boolean {

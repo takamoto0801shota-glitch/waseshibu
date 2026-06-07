@@ -12,6 +12,9 @@ import { sanitizeSubjects } from "@/lib/subjectUtils";
 import {
   AuthUser,
   CloudAppState,
+  DEFAULT_REWARD_MINUTES,
+  DEFAULT_STUDY_MINUTES,
+  defaultRewardMinutesFromStudy,
   UserDesire,
   UserProfile,
 } from "@/lib/types";
@@ -39,8 +42,8 @@ export function defaultCloudState(): CloudAppState {
   return {
     setupLockedAt: null,
     profile: defaultProfile(),
-    todayMinutes: 90,
-    todayRewardMinutes: 30,
+    todayMinutes: DEFAULT_STUDY_MINUTES,
+    todayRewardMinutes: DEFAULT_REWARD_MINUTES,
     todayRewardDesires: [],
     todaySubjectIds: [],
     plan: null,
@@ -96,16 +99,11 @@ export function normalizeCloudState(raw: CloudAppState): CloudAppState {
   return {
     setupLockedAt: raw.setupLockedAt ?? null,
     profile,
-    todayMinutes: (() => {
-      const study = raw.todayMinutes ?? 90;
-      if (raw.todayRewardMinutes != null) return study;
-      const reward = Math.max(5, Math.round(study / 3));
-      return Math.max(15, study - reward);
-    })(),
+    todayMinutes: raw.todayMinutes ?? DEFAULT_STUDY_MINUTES,
     todayRewardMinutes: (() => {
       if (raw.todayRewardMinutes != null) return raw.todayRewardMinutes;
-      const study = raw.todayMinutes ?? 90;
-      return Math.max(5, Math.round(study / 3));
+      const study = raw.todayMinutes ?? DEFAULT_STUDY_MINUTES;
+      return defaultRewardMinutesFromStudy(study);
     })(),
     todayRewardDesires: raw.todayRewardDesires ?? [],
     todaySubjectIds,

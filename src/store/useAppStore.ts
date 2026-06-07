@@ -26,6 +26,8 @@ import { sanitizeSubjects } from "@/lib/subjectUtils";
 import {
   DailyPlan,
   DailyRecord,
+  DEFAULT_REWARD_MINUTES,
+  DEFAULT_STUDY_MINUTES,
   MoodCheck,
   RhythmState,
   ScheduleBlock,
@@ -101,8 +103,8 @@ function startBlock(block: ScheduleBlock, autoRun: boolean) {
 const initialState = {
   setupLockedAt: null as string | null,
   profile: defaultProfile(),
-  todayMinutes: 90,
-  todayRewardMinutes: 30,
+  todayMinutes: DEFAULT_STUDY_MINUTES,
+  todayRewardMinutes: DEFAULT_REWARD_MINUTES,
   todayRewardDesires: [] as UserDesire[],
   todaySubjectIds: [] as string[],
   plan: null as DailyPlan | null,

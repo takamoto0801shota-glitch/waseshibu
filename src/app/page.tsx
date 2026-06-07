@@ -11,7 +11,7 @@ import {
 } from "@/components/TodaySubjectSheet";
 import { useAuth } from "@/components/AuthProvider";
 import { hasSetupInfo, loadLocalStateBackup } from "@/lib/onboardingGate";
-import { UserDesire } from "@/lib/types";
+import { DEFAULT_REWARD_MINUTES, UserDesire } from "@/lib/types";
 import { useAppStore } from "@/store/useAppStore";
 
 function clampMinutes(value: number, min: number, max: number): number {
@@ -74,7 +74,8 @@ export default function HomePage() {
         setupLockedAt: backup.setupLockedAt ?? null,
         profile: backup.profile,
         todayMinutes: backup.todayMinutes,
-        todayRewardMinutes: backup.todayRewardMinutes ?? 30,
+        todayRewardMinutes:
+          backup.todayRewardMinutes ?? DEFAULT_REWARD_MINUTES,
         todayRewardDesires: backup.todayRewardDesires,
         todaySubjectIds: backup.todaySubjectIds,
       });

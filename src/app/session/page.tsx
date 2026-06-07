@@ -186,8 +186,7 @@ export default function SessionPage() {
       const nextSubject = peekNextSubjectName(
         profile,
         plan,
-        todaySubjectIds,
-        currentBlock.durationMinutes
+        todaySubjectIds
       );
 
       return (

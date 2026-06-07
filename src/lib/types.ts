@@ -7,6 +7,18 @@ export const MODE_LABELS: Record<StudyMode, string> = {
   top_grade: "学年一位モード",
 };
 
+/** ホーム画面のデフォルト時間（勉強と自由は別々に設定・計算） */
+export const DEFAULT_STUDY_MINUTES = 90;
+export const DEFAULT_REWARD_MINUTES = 30;
+
+/** 自由時間未設定時のデフォルト比率（勉強:自由 = 2:1） */
+export const DEFAULT_STUDY_REWARD_RATIO = { study: 2, reward: 1 } as const;
+
+export function defaultRewardMinutesFromStudy(studyMinutes: number): number {
+  const { study, reward } = DEFAULT_STUDY_REWARD_RATIO;
+  return Math.max(5, Math.round((studyMinutes / study) * reward));
+}
+
 /** モードごとの勉強:自由の目標比率 */
 export const MODE_STUDY_REWARD_RATIO: Record<
   StudyMode,

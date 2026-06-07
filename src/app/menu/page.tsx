@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RoadmapTimeline } from "@/components/RoadmapTimeline";
 import { formatTodaySubjectsSummary } from "@/components/TodaySubjectSheet";
+import { useRequirePlan } from "@/hooks/useRequirePlan";
 import { HOME_PATH } from "@/lib/onboardingGate";
 import {
   buildRoadmap,
@@ -35,9 +36,7 @@ export default function RoadmapPage() {
     });
   }, [plan, profile, todaySubjectIds, currentBlock, sessionPhase]);
 
-  useEffect(() => {
-    if (!plan) router.replace(HOME_PATH);
-  }, [plan, router]);
+  const planReady = useRequirePlan(HOME_PATH);
 
   useEffect(() => {
     if (!plan) return;
@@ -79,7 +78,7 @@ export default function RoadmapPage() {
     };
   }, [baseSteps, plan, profile, todaySubjectIds, currentBlock, sessionPhase]);
 
-  if (!plan) return null;
+  if (!planReady || !plan) return null;
 
   const stepsUntilGoal = countStepsUntilGoal(steps);
   const nextReward = getNextRewardHint(steps);

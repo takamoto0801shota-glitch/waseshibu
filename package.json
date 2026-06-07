@@ -12,7 +12,12 @@
     "build": "next build",
     "build:clean": "npm run clean && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "deploy": "bash scripts/deploy.sh",
+    "deploy:quick": "railway up --detach",
+    "deploy:status": "bash scripts/deploy-status.sh",
+    "deploy:logs": "bash scripts/deploy-logs.sh",
+    "deploy:open": "railway open"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

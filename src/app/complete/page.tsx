@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useRequirePlan } from "@/hooks/useRequirePlan";
 import { HOME_PATH } from "@/lib/onboardingGate";
 import { getDaysUntilTest, getTotalDoneMinutes } from "@/lib/planGenerator";
 import { MODE_LABELS } from "@/lib/types";
@@ -15,16 +15,14 @@ export default function CompletePage() {
 
   const daysLeft = getDaysUntilTest(profile.testDate);
 
-  useEffect(() => {
-    if (!plan) router.replace(HOME_PATH);
-  }, [plan, router]);
+  const planReady = useRequirePlan(HOME_PATH);
 
   const handleHome = () => {
     resetSession();
     router.push(HOME_PATH);
   };
 
-  if (!plan) {
+  if (!planReady || !plan) {
     return (
       <div className="min-h-dvh bg-bg flex items-center justify-center">
         <p className="text-sm text-muted">読み込み中...</p>

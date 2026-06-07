@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { MoodCheckPanel } from "@/components/MoodCheck";
 import { TodayDigestBar } from "@/components/TodayDigestBar";
 import { useTimer } from "@/hooks/useTimer";
+import { useRequirePlan } from "@/hooks/useRequirePlan";
 import { HOME_PATH } from "@/lib/onboardingGate";
 import { peekNextSubjectName } from "@/lib/rhythmCoach";
 import { formatTime, useAppStore } from "@/store/useAppStore";
@@ -57,16 +58,7 @@ export default function SessionPage() {
 
   useTimer();
 
-  useEffect(() => {
-    if (!plan) router.replace(HOME_PATH);
-  }, [plan, router]);
-
-  useEffect(() => {
-    if (!plan) return;
-    if (!currentBlock && sessionPhase !== "mood_check") {
-      router.replace("/menu");
-    }
-  }, [plan, currentBlock, sessionPhase, router]);
+  const planReady = useRequirePlan(HOME_PATH);
 
   const finishSession = () => {
     if (!plan) return;
@@ -103,7 +95,7 @@ export default function SessionPage() {
     if (finished) finishSession();
   };
 
-  if (!plan) return null;
+  if (!planReady || !plan) return null;
 
   if (sessionPhase === "mood_check") {
     return (
@@ -117,9 +109,18 @@ export default function SessionPage() {
 
   if (!currentBlock) {
     return (
-      <div className="min-h-dvh bg-bg flex items-center justify-center">
-        <p className="text-sm text-muted">読み込み中...</p>
-      </div>
+      <SessionShell plan={plan}>
+        <p className="text-sm text-muted mb-6 text-center">
+          セッションを再開します
+        </p>
+        <button
+          type="button"
+          onClick={() => router.replace("/menu")}
+          className="sketch-btn sketch-btn-primary w-full max-w-xs py-3"
+        >
+          ロードマップへ戻る
+        </button>
+      </SessionShell>
     );
   }
 

@@ -30,6 +30,11 @@ import {
 } from "@/lib/userData";
 import { fetchCloudWithRetry } from "@/lib/cloudFetch";
 import { recoverSetupState } from "@/lib/recoverSetup";
+import {
+  mergeCloudWithBackup,
+  persistSessionSnapshot,
+  pickCloudStateFromStore,
+} from "@/lib/sessionRestore";
 import { applyCloudStateToStore } from "@/lib/storeHydrate";
 import {
   ensureUserRowViaApi,
@@ -88,6 +93,7 @@ export function AuthProvider({
   const [dataReady, setDataReady] = useState(false);
   const configError = validateSupabaseConfig(supabaseUrl, supabaseAnonKey);
   const hydrated = useRef(false);
+  const hydratedUid = useRef<string | null>(null);
   const loadingRef = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -124,10 +130,13 @@ export function AuthProvider({
   );
 
   const loadAndHydrate = useCallback(
-    async (uid: string) => {
+    async (uid: string, options?: { silent?: boolean }) => {
       if (loadingRef.current) return;
       loadingRef.current = true;
-      setDataReady(false);
+      const isFirstLoad = !hydrated.current;
+      if (isFirstLoad && !options?.silent) {
+        setDataReady(false);
+      }
       try {
         const backup = loadLocalStateBackup(uid);
         let cloud: CloudAppState | null = null;
@@ -149,7 +158,9 @@ export function AuthProvider({
         }
 
         if (cloud) {
-          const locked = enforceSetupLock(cloud);
+          const locked = enforceSetupLock(
+            mergeCloudWithBackup(cloud, backup)
+          );
           hydrateStore(locked);
           persistLocal(uid, locked);
           if (hasSetupInfo(locked.profile)) {
@@ -172,6 +183,7 @@ export function AuthProvider({
         }
 
         hydrated.current = true;
+        hydratedUid.current = uid;
         setDataReady(true);
       } finally {
         loadingRef.current = false;
@@ -221,12 +233,14 @@ export function AuthProvider({
         );
         setUser(authUser);
 
+        const alreadyHydratedForUser =
+          hydrated.current && hydratedUid.current === authUser.uid;
+
         const shouldLoad =
-          !hydrated.current &&
+          !alreadyHydratedForUser &&
           (event === "INITIAL_SESSION" || event === "SIGNED_IN");
 
         if (shouldLoad) {
-          setDataReady(false);
           await ensureUserRowViaApi().catch(() => {});
           await loadAndHydrate(authUser.uid);
         }
@@ -239,6 +253,7 @@ export function AuthProvider({
         clearOnboardingCache();
         setUser(null);
         hydrated.current = false;
+        hydratedUid.current = null;
         setDataReady(false);
         useAppStore.getState().resetAll();
         setDataReady(true);
@@ -272,14 +287,26 @@ export function AuthProvider({
   useEffect(() => {
     if (!user) return;
 
-    const unsub = useAppStore.subscribe(() => {
+    const unsub = useAppStore.subscribe((state, prev) => {
       if (!hydrated.current) return;
+
+      const sessionChanged =
+        state.plan !== prev.plan ||
+        state.currentBlock !== prev.currentBlock ||
+        state.sessionPhase !== prev.sessionPhase ||
+        state.remainingSeconds !== prev.remainingSeconds ||
+        state.isRunning !== prev.isRunning;
+
+      if (sessionChanged) {
+        persistSessionSnapshot(user.uid);
+      }
+
       clearSaveTimer();
       saveTimer.current = setTimeout(() => {
-        const state = enforceSetupLock(pickCloudState());
-        if (!shouldPersistToCloud(state)) return;
-        saveUserDataViaApi(state).catch(() => {});
-        persistLocal(user.uid, state);
+        const cloudState = enforceSetupLock(pickCloudStateFromStore());
+        if (!shouldPersistToCloud(cloudState)) return;
+        saveUserDataViaApi(cloudState).catch(() => {});
+        persistLocal(user.uid, cloudState);
       }, 800);
     });
 
@@ -314,6 +341,7 @@ export function AuthProvider({
     if (uid) clearSetupLock(uid);
     clearOnboardingCache();
     hydrated.current = false;
+    hydratedUid.current = null;
     setDataReady(false);
     await supabase.auth.signOut();
     setUser(null);

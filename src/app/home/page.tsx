@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BottomNav } from "@/components/BottomNav";
 import { DesirePicker } from "@/components/DesirePicker";
@@ -61,20 +61,22 @@ export default function HomePage() {
   );
   const [subjectSheetOpen, setSubjectSheetOpen] = useState(false);
   const [setupChecking, setSetupChecking] = useState(true);
+  const setupResolvedRef = useRef(false);
 
   const subjects = profile.subjects;
   const setupReady = hasSetupInfo(profile);
   const appReady = !authLoading && dataReady && !!user;
 
   useEffect(() => {
-    if (!appReady) {
-      setSetupChecking(true);
-      return;
-    }
+    if (!appReady) return;
+
     if (!needsInitialSetup(profile)) {
+      setupResolvedRef.current = true;
       setSetupChecking(false);
       return;
     }
+
+    if (setupResolvedRef.current) return;
 
     let cancelled = false;
 
@@ -90,6 +92,7 @@ export default function HomePage() {
           const recovered = await recoverSetupState(user.uid);
           if (cancelled) return;
           if (recovered || hasSetupInfo(useAppStore.getState().profile)) {
+            setupResolvedRef.current = true;
             setSetupChecking(false);
             return;
           }
@@ -97,6 +100,7 @@ export default function HomePage() {
       }
 
       if (!cancelled) {
+        setupResolvedRef.current = true;
         setSetupChecking(false);
         router.replace(ONBOARDING_PATH);
       }

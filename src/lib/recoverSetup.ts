@@ -5,16 +5,19 @@ import {
   isSetupLockedForUser,
   loadLocalStateBackup,
   lockSetupPermanently,
-  saveLocalStateBackup,
 } from "@/lib/onboardingGate";
 import { enforceSetupLock } from "@/lib/userData";
-import { applyCloudStateToStore } from "@/lib/storeHydrate";
+import {
+  mergeSetupProfileIntoStore,
+  persistSessionSnapshot,
+  pickCloudStateFromStore,
+} from "@/lib/sessionRestore";
 import { CloudAppState } from "@/lib/types";
 
 function persistRecovered(uid: string, state: CloudAppState): void {
-  const locked = enforceSetupLock(state);
-  applyCloudStateToStore(locked);
-  saveLocalStateBackup(uid, locked);
+  mergeSetupProfileIntoStore(state);
+  persistSessionSnapshot(uid);
+  const locked = enforceSetupLock(pickCloudStateFromStore());
   if (isCloudSetupLocked(locked)) {
     lockSetupPermanently(uid);
   }

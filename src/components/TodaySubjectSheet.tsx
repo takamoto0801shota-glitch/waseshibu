@@ -38,56 +38,60 @@ export function TodaySubjectSheet({
   return (
     <>
       <div
-        className="fixed inset-0 z-40 bg-black/30"
+        className="fixed inset-0 z-[60] bg-black/30"
         onClick={onClose}
       />
-      <div className="fixed inset-x-0 bottom-0 z-50 sketch-border bg-card rounded-t-2xl px-5 pt-5 pb-8 max-w-md mx-auto">
-        <h2 className="text-lg font-bold mb-1">今日やる科目</h2>
-        <p className="text-xs text-muted mb-4">
-          タップでオン/オフ。今日やらない科目は外してください。
-        </p>
+      <div className="fixed inset-x-0 bottom-0 z-[70] mx-auto flex max-h-[min(88dvh,100%)] w-full max-w-md flex-col rounded-t-2xl bg-card sketch-border">
+        <div className="overflow-y-auto px-5 pt-5 pb-3">
+          <h2 className="text-lg font-bold mb-1">今日やる科目</h2>
+          <p className="text-xs text-muted mb-4">
+            タップでオン/オフ。今日やらない科目は外してください。
+          </p>
 
-        <div className="flex flex-wrap gap-2 mb-4">
-          {subjects.map((s) => {
-            const active = selectedSet.has(s.id);
-            return (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => toggle(s.id)}
-                className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
-                  active
-                    ? "border-primary bg-primary/10 text-primary font-bold"
-                    : "border-border bg-bg text-muted"
-                }`}
-              >
-                {s.name}
-              </button>
-            );
-          })}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {subjects.map((s) => {
+              const active = selectedSet.has(s.id);
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => toggle(s.id)}
+                  className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
+                    active
+                      ? "border-primary bg-primary/10 text-primary font-bold"
+                      : "border-border bg-bg text-muted"
+                  }`}
+                >
+                  {s.name}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={selectAll}
+              disabled={allSelected}
+              className="sketch-btn flex-1 py-2 text-xs disabled:opacity-40"
+            >
+              全選択
+            </button>
+            <p className="flex-1 text-xs text-muted flex items-center justify-end">
+              {selectedIds.length} / {subjects.length} 科目
+            </p>
+          </div>
         </div>
 
-        <div className="flex gap-2 mb-5">
+        <div className="shrink-0 border-t border-border bg-card px-5 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
           <button
             type="button"
-            onClick={selectAll}
-            disabled={allSelected}
-            className="sketch-btn flex-1 py-2 text-xs disabled:opacity-40"
+            onClick={onClose}
+            className="sketch-btn sketch-btn-primary w-full py-3"
           >
-            全選択
+            完了
           </button>
-          <p className="flex-1 text-xs text-muted flex items-center justify-end">
-            {selectedIds.length} / {subjects.length} 科目
-          </p>
         </div>
-
-        <button
-          type="button"
-          onClick={onClose}
-          className="sketch-btn sketch-btn-primary w-full py-3"
-        >
-          完了
-        </button>
       </div>
     </>
   );

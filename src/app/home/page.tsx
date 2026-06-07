@@ -209,7 +209,7 @@ export default function HomePage() {
                   }
                 }}
                 placeholder="0.5"
-                className="w-full text-center text-4xl font-bold text-primary bg-transparent outline-none border-b-2 border-primary pb-2 mb-1"
+                className="w-full text-center text-4xl font-bold text-reward bg-transparent outline-none border-b-2 border-reward pb-2 mb-1"
               />
               <p className="text-xs text-muted">{todayRewardMinutes}分</p>
             </div>

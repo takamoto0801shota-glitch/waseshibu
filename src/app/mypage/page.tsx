@@ -11,6 +11,8 @@ import { getDaysUntilTest } from "@/lib/planGenerator";
 import { MODE_HINTS } from "@/lib/types";
 import { CourseTrack, SubjectConfig, UserDesire } from "@/lib/types";
 import { useAuth } from "@/components/AuthProvider";
+import { clearOnboardingCache } from "@/lib/onboardingGate";
+import { defaultProfile } from "@/lib/userData";
 import { useAppStore } from "@/store/useAppStore";
 
 export default function MyPage() {
@@ -44,16 +46,17 @@ export default function MyPage() {
   const handleReset = async () => {
     setResetting(true);
     try {
-      useAppStore.setState((s) => ({
-        profile: { ...s.profile, onboardingComplete: false },
+      clearOnboardingCache();
+      useAppStore.setState({
+        profile: { ...defaultProfile(), desires: profile.desires },
         plan: null,
         currentBlock: null,
         sessionPhase: null,
         remainingSeconds: 0,
         isRunning: false,
-      }));
+      });
       await saveCloudState({ allowOnboardingReset: true });
-      router.push("/onboarding");
+      router.push("/onboarding?force=1");
     } finally {
       setResetting(false);
     }

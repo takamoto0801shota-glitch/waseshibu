@@ -12,6 +12,12 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { validateSupabaseConfig } from "@/lib/supabase/env";
 import {
+  clearOnboardingCache,
+  isOnboardingCached,
+  isOnboardingDone,
+  markOnboardingCached,
+} from "@/lib/onboardingGate";
+import {
   authUserFromSupabase,
   defaultCloudState,
   ensureUserRow,
@@ -102,9 +108,25 @@ export function AuthProvider({
     async (uid: string) => {
       if (!supabase || loadingRef.current) return;
       loadingRef.current = true;
+      setDataReady(false);
       try {
-        const cloud = await loadUserData(supabase, uid);
-        hydrateStore(cloud ?? defaultCloudState());
+        let cloud = await loadUserData(supabase, uid);
+        if (!cloud && isOnboardingCached(uid)) {
+          await new Promise((r) => setTimeout(r, 400));
+          cloud = await loadUserData(supabase, uid);
+        }
+
+        if (cloud) {
+          hydrateStore(cloud);
+          if (isOnboardingDone(cloud.profile, uid)) {
+            markOnboardingCached(uid);
+          }
+        } else if (isOnboardingCached(uid)) {
+          // 読み込み失敗時も完了済みキャッシュがあればストアを上書きしない
+        } else {
+          hydrateStore(defaultCloudState());
+        }
+
         hydrated.current = true;
         setDataReady(true);
       } finally {
@@ -155,6 +177,7 @@ export function AuthProvider({
           (event === "INITIAL_SESSION" || event === "SIGNED_IN");
 
         if (shouldLoad) {
+          setDataReady(false);
           await ensureUserRow(
             supabase,
             session.user as import("@supabase/supabase-js").User
@@ -162,7 +185,12 @@ export function AuthProvider({
           await loadAndHydrate(authUser.uid);
         }
       } else if (event === "SIGNED_OUT") {
+        const { data: { session: stillThere } } =
+          await supabase.auth.getSession();
+        if (stillThere?.user) return;
+
         clearSaveTimer();
+        clearOnboardingCache();
         setUser(null);
         hydrated.current = false;
         setDataReady(false);
@@ -230,6 +258,7 @@ export function AuthProvider({
   const signOut = async () => {
     if (!supabase) return;
     clearSaveTimer();
+    clearOnboardingCache();
     if (user) {
       await saveUserData(supabase, user.uid, pickCloudState()).catch(
         () => {}

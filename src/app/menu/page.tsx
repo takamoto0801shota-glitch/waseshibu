@@ -35,7 +35,7 @@ export default function RoadmapPage() {
   }, [plan, profile, todaySubjectIds, currentBlock, sessionPhase]);
 
   useEffect(() => {
-    if (!plan) router.replace("/");
+    if (!plan) router.replace("/home");
   }, [plan, router]);
 
   useEffect(() => {
@@ -132,7 +132,7 @@ export default function RoadmapPage() {
         <button
           onClick={() => {
             resetSession();
-            router.push("/");
+            router.push("/home");
           }}
           className="sketch-btn w-full py-3 text-sm mt-3"
         >

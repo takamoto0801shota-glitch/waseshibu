@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { todayStrJST } from "@/lib/dateUtils";
+import { withStableProfile } from "@/lib/onboardingGate";
 import { defaultProfile } from "@/lib/userData";
 import { DESIRE_PRESETS } from "@/lib/desires";
 import {
@@ -124,13 +125,19 @@ export const useAppStore = create<AppState>()((set, get) => ({
       },
 
       setMode: (mode) =>
-        set((s) => ({ profile: { ...s.profile, mode } })),
+        set((s) => ({
+          profile: withStableProfile(s.profile, { mode }),
+        })),
 
       setTestDate: (testDate) =>
-        set((s) => ({ profile: { ...s.profile, testDate } })),
+        set((s) => ({
+          profile: withStableProfile(s.profile, { testDate }),
+        })),
 
       setDesires: (desires) =>
-        set((s) => ({ profile: { ...s.profile, desires } })),
+        set((s) => ({
+          profile: withStableProfile(s.profile, { desires }),
+        })),
 
       setTodayMinutes: (minutes) => set({ todayMinutes: minutes }),
 
@@ -433,7 +440,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
             subjects.filter((sub) => sub.name.trim())
           );
           return {
-            profile: { ...s.profile, subjects: valid },
+            profile: withStableProfile(s.profile, { subjects: valid }),
           };
         }),
 }));

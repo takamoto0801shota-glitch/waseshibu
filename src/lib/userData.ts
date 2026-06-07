@@ -3,6 +3,7 @@ import { DESIRE_PRESETS } from "@/lib/desires";
 import { filterSubjects } from "@/lib/exclusions";
 import { normalizeMode } from "@/lib/rhythmCoach";
 import { sanitizeSubjects } from "@/lib/subjectUtils";
+import { inferOnboardingComplete } from "@/lib/onboardingGate";
 import {
   AuthUser,
   CloudAppState,
@@ -61,6 +62,7 @@ export function normalizeCloudState(raw: CloudAppState): CloudAppState {
   if (!profile.courseTrack) profile.courseTrack = "arts";
   if (!profile.desires?.length) profile.desires = defaultDesires();
   profile.subjects = filterSubjects(sanitizeSubjects(profile.subjects ?? []));
+  profile.onboardingComplete = inferOnboardingComplete(profile);
   const validIds = new Set(profile.subjects.map((s) => s.id));
   const todaySubjectIds = (raw.todaySubjectIds ?? []).filter((id) =>
     validIds.has(id)

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DesirePicker } from "@/components/DesirePicker";
 import { GradePicker } from "@/components/GradePicker";
@@ -8,12 +8,12 @@ import { SubjectSelector } from "@/components/SubjectSelector";
 import { buildAllSubjects, needsCourseTrack } from "@/lib/subjectCatalog";
 import { CourseTrack, SubjectConfig, UserDesire } from "@/lib/types";
 import { useAuth } from "@/components/AuthProvider";
+import { markOnboardingCached } from "@/lib/onboardingGate";
 import { useAppStore } from "@/store/useAppStore";
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { user, loading: authLoading, dataReady, saveCloudState } = useAuth();
-  const onboardingComplete = useAppStore((s) => s.profile.onboardingComplete);
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
 
   const [step, setStep] = useState(0);
@@ -43,7 +43,8 @@ export default function OnboardingPage() {
         testDate: "",
       });
       await saveCloudState();
-      router.replace("/");
+      if (user) markOnboardingCached(user.uid);
+      router.replace("/home");
     } catch {
       setSaveError("保存に失敗しました。もう一度お試しください。");
     } finally {
@@ -51,21 +52,7 @@ export default function OnboardingPage() {
     }
   };
 
-  useEffect(() => {
-    if (!authLoading && dataReady && user && onboardingComplete) {
-      router.replace("/");
-    }
-  }, [authLoading, dataReady, user, onboardingComplete, router]);
-
   if (authLoading || !dataReady) {
-    return (
-      <div className="min-h-dvh bg-bg flex items-center justify-center">
-        <p className="text-sm text-muted">読み込み中...</p>
-      </div>
-    );
-  }
-
-  if (user && onboardingComplete) {
     return (
       <div className="min-h-dvh bg-bg flex items-center justify-center">
         <p className="text-sm text-muted">読み込み中...</p>

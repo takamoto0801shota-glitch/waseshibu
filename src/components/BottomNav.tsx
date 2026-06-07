@@ -4,13 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const items = [
-  { href: "/", label: "ホーム" },
+  { href: "/home", label: "ホーム" },
   { href: "/mypage", label: "マイページ" },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
-  const hidden = ["/onboarding", "/menu", "/session", "/complete"];
+  const hidden = ["/onboarding", "/menu", "/session", "/complete", "/"];
   if (hidden.some((p) => pathname.startsWith(p))) return null;
 
   return (

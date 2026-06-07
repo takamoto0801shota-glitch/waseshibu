@@ -171,7 +171,7 @@ export default function HomePage() {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mb-8">
+        <div className="grid grid-cols-2 gap-3 mb-6">
           <div>
             <p className="text-xs font-bold text-muted mb-2">目標勉強時間</p>
             <div className="sketch-border bg-card p-5 text-center h-full flex flex-col justify-center">
@@ -216,18 +216,14 @@ export default function HomePage() {
           </div>
         </div>
 
+        <p className="text-xs font-bold text-muted mt-3 mb-3">今日やる科目</p>
         <button
           type="button"
           onClick={() => setSubjectSheetOpen(true)}
-          className="sketch-border bg-card w-full mb-6 text-left overflow-hidden"
+          className="sketch-border bg-card w-full px-4 py-4 mb-6 text-left flex items-center justify-between"
         >
-          <div className="px-4 pt-3 pb-2 border-b border-border">
-            <span className="text-xs font-bold text-muted">今日やる科目</span>
-          </div>
-          <div className="px-4 py-4 flex items-center justify-between gap-3">
-            <span className="text-sm font-semibold">{subjectSummary}</span>
-            <span className="text-xs text-primary shrink-0">変更 ▾</span>
-          </div>
+          <span className="text-sm font-semibold">{subjectSummary}</span>
+          <span className="text-xs text-muted">変更 ▾</span>
         </button>
 
         <p className="text-xs font-bold text-muted mb-3">やりたいこと</p>
